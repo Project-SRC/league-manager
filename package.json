@@ -1,0 +1,13 @@
+{
+  "name": "league-manager",
+  "version": "0.0.1",
+  "description": "API for Project SRC - League Manager - Built with FastAPI",
+  "main": "src/main.py",
+  "repository": "https://github.com/Project-SRC/league-manager",
+  "author": "João Pedro Sconetto",
+  "license": "GPL-3.0-or-later",
+  "private": false,
+  "scripts": {
+    "release": "standard-version"
+  }
+}
