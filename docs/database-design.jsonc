@@ -1,0 +1,112 @@
+[
+  // Class User
+  {
+    "id": "UUID",
+    "username": "str",
+    "password": "str",
+    "email": "str",
+    "name": "str",
+    "profile_picture": "str", // link to CDN
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "deleted_at": "datetime",
+    "is_manager": "bool",
+    "is_driver": "bool",
+    "is_admin": "bool",
+    "manager_id": "UUID", // optional
+    "driver_id": "UUID" // optional
+  },
+
+  // Class Driver
+  {
+    "id": "UUID",
+    "user_id": "UUID",
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "current_team": "UUID", // ID of the Object of Team Participation
+    "country": "UUID",
+    "total_podiums": "int",
+    "total_points": "int",
+    "total_races": "int",
+    "championships_won": "int",
+    "birth_date": "date",
+    "birth_place": "geolocation", // Use Google Maps API (City, State)
+    "number": "int",
+    "active": "bool"
+  },
+
+  // Class Country
+  {
+    "id": "UUID",
+    "name": "str",
+    "abbreviation": "str",
+    "flag": "str" // CDN link for the flag image
+  },
+
+  // Class Manager
+  {
+    "id": "UUID",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  },
+
+  // Class League
+  {
+    "id": "UUID",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  },
+
+  // Class Race
+  {
+    "id": "UUID",
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "deleted_at": "datetime",
+    "track": "UUID",
+    "number_laps": "int", // If timed race calculate estimated number of laps
+    "race_time": "str", // Class time (see https://github.com/Project-SRC/time-operator)
+    "driver_max": "int"
+  },
+
+  // Class Track
+  {
+    "id": "UUID",
+    "name": "str",
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "deleted_at": "datetime",
+    "founded": "date",
+    "type": "str",
+    "location": "geolocation", // Use Google Maps API (City, State),
+    "country": "UUID",
+    "direction": "str",
+    "length": "float", // Use length always in Km (convert to miles when needed)
+    "number_curves": "int",
+    "map": "str", // CDN link to circuit map image
+    "record": "str" // Class Time (see https://github.com/Project-SRC/time-operator)
+  },
+
+  // Class Participation
+  {
+    "id": "UUID",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  },
+
+  // Class Team
+  {
+    "id": "UUID",
+    "name": "str",
+    "base": "geolocation", // Use Google Maps API (City, State)
+    "founded": "date",
+    "team_chief": "UUID", // User ID - Team Manager/Chief
+    "logo": "str", // CDN link for the logo
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "deleted_at": "datetime",
+    "total_points": "int",
+    "total_races": "int",
+    "championships_won": "int"
+  }
+]
