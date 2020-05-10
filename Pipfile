@@ -5,6 +5,8 @@ verify_ssl = true
 
 [dev-packages]
 ipdb = "==0.13.2"
+black = "*"
+bandit = "*"
 
 [packages]
 fastapi = "==0.54.1"
@@ -17,6 +19,11 @@ passlib = "*"
 bcrypt = "*"
 email-validator = "==1.0.5"
 starlette = "==0.13.2"
+rethinkdb = "==2.4.6"
+environs = "==7.4.0"
 
 [requires]
 python_version = "3.7"
+
+[pipenv]
+allow_prereleases = true
