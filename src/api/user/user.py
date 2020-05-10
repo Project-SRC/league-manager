@@ -1,17 +1,24 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
-from typing import Optional
-from uuid import uuid4 as uuid
-from uuid import UUID
 from datetime import datetime, timedelta
-import jwt
+from environs import Env
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt import PyJWTError
 from passlib.context import CryptContext
+from src.models.user.user import User, UserInDB, Token, TokenData
+from uuid import uuid4 as uuid
+import jwt
 
-SECRET_KEY = "29da5bb8099920c0c62cb99eb48de9e2bd2ecc80af6aa1307ecd59c7490a4d6387987421de0e348e5479a65bcc7443a66a8fb2917d059d4fe030718549f19b26"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Router for the API
+ROUTER = APIRouter()
+
+# Enviroment reader
+env = Env()
+env.read_env()
+
+SECRET_KEY = env.str("SECRET_KEY")
+ALGORITHM = env.str("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = env.int("ACCESS_TOKEN_EXPIRE_MINUTES", default=30)
 
 fake_users_db = {
     "johndoe": {
@@ -30,30 +37,9 @@ fake_users_db = {
     },
 }
 
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str = None
-
-
-class User(BaseModel):
-    id: UUID
-    username: str
-    name: str
-    disabled: Optional[bool] = None
-
-
-class UserInDB(User):
-    password: str
-
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/token")
 
 
 def verify_password(plain_password, hashed_password):
@@ -121,3 +107,30 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+# Routes
+@ROUTER.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@ROUTER.get("/me")
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
+
+
+@ROUTER.get("/me/items/")
+async def read_own_items(current_user: User = Depends(get_current_active_user)):
+    return [{"item_id": "Foo", "owner": current_user.username}]
