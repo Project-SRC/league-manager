@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt import PyJWTError
 from passlib.context import CryptContext
-from src.models.user.user import User, UserInDB, Token, TokenData
+from src.models.user.user import User, Token, TokenData
 from uuid import uuid4 as uuid
 import jwt
 
@@ -26,14 +26,20 @@ fake_users_db = {
         "username": "johndoe",
         "name": "John Doe",
         "password": "$2b$12$LSpjdEdGDXvWikH6huFgM.p1x5WMuSVZ8Qrw1d.Bdfa4l5pnMYL3G",
-        "disabled": False,
+        "nickname": "johnny",
+        "email": "john@email.com",
+        "created_at": "2020-05-11 19:34:37.482168",
+        "updated_at": "2020-05-11 19:34:37.482168"
     },
     "alice": {
         "id": "7be514e6-63eb-4ebb-9e23-f4aa47e426bc",
         "username": "alice",
         "name": "Alice Wonderson",
         "password": "$2b$12$K.N/n5EGPR01TvkfCpLQX.XG/1LBLARJqFG3133dTq73YcLp5Gf56",
-        "disabled": True,
+        "nickname": "wonderalice",
+        "email": "alice@email.com",
+        "created_at": "2020-05-11 19:34:37.482168",
+        "updated_at": "2020-05-11 19:34:37.482168"
     },
 }
 
@@ -53,22 +59,15 @@ def get_password_hash(password):
 def get_user(db, username: str):
     if username in db:
         user_dict = db[username]
-        return UserInDB(**user_dict)
+        return User(**user_dict)
 
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
+def authenticate_user(database, username: str, password: str):
+    user = get_user(database, username)
     if not user:
         return False
     if not verify_password(password, user.password):
         return False
-    return user
-
-
-def fake_decode_token(token):
-    # This doesn't provide any security at all
-    # Check the next version
-    user = get_user(fake_users_db, token)
     return user
 
 
@@ -104,8 +103,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Inactive user")
+    # TODO: Update Current Active User Logic
+    # if current_user.disabled:
+    #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 
