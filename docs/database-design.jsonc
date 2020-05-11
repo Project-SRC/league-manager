@@ -5,6 +5,7 @@
     "username": "str",
     "password": "str",
     "email": "str",
+    "nickname": "str",
     "name": "str",
     "profile_picture": "str", // link to CDN
     "created_at": "datetime",
@@ -12,9 +13,11 @@
     "deleted_at": "datetime",
     "is_manager": "bool",
     "is_driver": "bool",
+    "is_steward": "bool",
     "is_admin": "bool",
     "manager_id": "UUID", // optional
-    "driver_id": "UUID" // optional
+    "driver_id": "UUID", // optional
+    "steward_id": "UUID" // optional
   },
 
   // Class Driver
@@ -31,7 +34,7 @@
     "championships_won": "int",
     "birth_date": "date",
     "birth_place": "geolocation", // Use Google Maps API (City, State)
-    "number": "int",
+    "number": "str",
     "active": "bool"
   },
 
@@ -47,7 +50,16 @@
   {
     "id": "UUID",
     "created_at": "datetime",
-    "updated_at": "datetime"
+    "updated_at": "datetime",
+    "active": "bool"
+  },
+
+  // Class Steward
+  {
+    "id": "UUID",
+    "created_at": "datetime",
+    "updated_at": "datetime",
+    "active": "bool"
   },
 
   // Class League
@@ -91,7 +103,8 @@
   {
     "id": "UUID",
     "created_at": "datetime",
-    "updated_at": "datetime"
+    "updated_at": "datetime",
+    ""
   },
 
   // Class Team
@@ -108,5 +121,14 @@
     "total_points": "int",
     "total_races": "int",
     "championships_won": "int"
+  },
+
+  // Class Contract
+  {
+    "id": "UUID",
+    "created_at": "datetime",
+    "terminated_at": "datetime",
+    "team_id": "UUID",
+    "user_id": "UUI"
   }
 ]
