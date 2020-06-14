@@ -1,6 +1,5 @@
 from datetime import date, datetime
 from pydantic import BaseModel, HttpUrl
-from src.models.user.user import User
 from typing import Optional
 from uuid import UUID
 
@@ -10,7 +9,7 @@ class Team(BaseModel):
     name: str
     base: Optional[str]  # TODO: Update to use Geolocation
     founded: date
-    team_chief: User
+    team_chief: UUID
     logo: Optional[HttpUrl]
     created_at: datetime
     updated_at: datetime

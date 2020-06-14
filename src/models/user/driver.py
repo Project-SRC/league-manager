@@ -1,7 +1,5 @@
 from datetime import date, datetime
 from src.models.user.user import User
-from src.models.team.team import Team
-from src.models.country.country import Country
 from typing import Optional
 from uuid import UUID
 
@@ -9,8 +7,8 @@ class Driver(User):
     id: UUID
     created_at: datetime
     updated_at: datetime
-    current_team: Optional[Team] = None
-    country: Country
+    current_team: Optional[UUID] = None
+    country: UUID
     total_podiums: int = 0
     total_points: int = 0
     total_races: int = 0

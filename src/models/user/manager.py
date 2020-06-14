@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.models.user.user.User
+from src.models.user.user import User
 from uuid import UUID
 
 
