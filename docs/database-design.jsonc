@@ -66,7 +66,14 @@
   {
     "id": "UUID",
     "created_at": "datetime",
-    "updated_at": "datetime"
+    "updated_at": "datetime",
+    "ended_at": "datetime",
+    "tracks": "List[UUID]",
+    "teams": "List[UUID]",
+    "drivers": "List[UUID]",
+    "points": "List[int]",
+    "doubled_points": "bool", // The last race has doubled points?
+    "prize": "List[str]"
   },
 
   // Class Race
@@ -104,7 +111,8 @@
     "id": "UUID",
     "created_at": "datetime",
     "updated_at": "datetime",
-    ""
+    "race": "UUID",
+    "driver": "UUID"
   },
 
   // Class Team
@@ -128,7 +136,7 @@
     "id": "UUID",
     "created_at": "datetime",
     "terminated_at": "datetime",
-    "team_id": "UUID",
-    "user_id": "UUI"
+    "team": "UUID",
+    "driver": "UUID"
   }
 ]
