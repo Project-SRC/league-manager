@@ -18,14 +18,16 @@ env.read_env()
 
 SECRET_KEY = env.str("SECRET_KEY")
 ALGORITHM = env.str("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = env.int("ACCESS_TOKEN_EXPIRE_MINUTES", default=30)
+ACCESS_TOKEN_EXPIRE_MINUTES = env.int(
+    "ACCESS_TOKEN_EXPIRE_MINUTES", default=30
+)
 
 fake_users_db = {
     "johndoe": {
         "id": "f8707ff9-b1ef-4293-b6a9-556fc7d00000",
         "username": "johndoe",
         "name": "John Doe",
-        "password": "$2b$12$LSpjdEdGDXvWikH6huFgM.p1x5WMuSVZ8Qrw1d.Bdfa4l5pnMYL3G",
+        "password": "$2b$12$IQ4abOA7/ePXBlXZn4yDlOf9GsAy7sACWodKqer61svPZIf2hTy.2",
         "nickname": "johnny",
         "email": "john@email.com",
         "created_at": "2020-05-11 19:34:37.482168",
@@ -35,7 +37,7 @@ fake_users_db = {
         "id": "7be514e6-63eb-4ebb-9e23-f4aa47e426bc",
         "username": "alice",
         "name": "Alice Wonderson",
-        "password": "$2b$12$K.N/n5EGPR01TvkfCpLQX.XG/1LBLARJqFG3133dTq73YcLp5Gf56",
+        "password": "$2b$12$IQ4abOA7/ePXBlXZn4yDlOf9GsAy7sACWodKqer61svPZIf2hTy.2",
         "nickname": "wonderalice",
         "email": "alice@email.com",
         "created_at": "2020-05-11 19:34:37.482168",
@@ -112,7 +114,8 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 # Routes
 @ROUTER.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    user = authenticate_user(
+        fake_users_db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
