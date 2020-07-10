@@ -14,7 +14,7 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
-    id: UUID
+    id: Optional[UUID]
     username: str
     password: str
     name: str

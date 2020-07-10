@@ -8,7 +8,7 @@ Records = List[UUID]
 
 
 class League(BaseModel):
-    id: UUID
+    id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
     ended_at: Optional[datetime]

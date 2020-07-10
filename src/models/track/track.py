@@ -5,7 +5,7 @@ from uuid import UUID
 
 
 class Track(BaseModel):
-    id: UUID
+    id: Optional[UUID]
     name: str
     created_at: datetime
     updated_at: datetime

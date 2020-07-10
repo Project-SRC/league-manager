@@ -5,7 +5,7 @@ from uuid import UUID
 
 
 class Team(BaseModel):
-    id: UUID
+    id: Optional[UUID]
     name: str
     base: Optional[str]  # TODO: Update to use Geolocation
     founded: date

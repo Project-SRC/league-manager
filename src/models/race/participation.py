@@ -5,7 +5,7 @@ from uuid import UUID
 
 
 class Participation(BaseModel):
-    id: UUID
+    id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime

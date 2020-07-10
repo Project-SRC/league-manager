@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 class Driver(User):
-    id: UUID
+    id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
     current_team: Optional[UUID] = None
