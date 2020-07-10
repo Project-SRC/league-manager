@@ -4,9 +4,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-ipdb = "==0.13.2"
-black = "*"
-bandit = "*"
+ipdb = "*"
+black = "==19.10b0"
+bandit = "==1.6.2"
 
 [packages]
 fastapi = "==0.54.1"
@@ -21,6 +21,8 @@ email-validator = "==1.1.0"
 starlette = "==0.13.2"
 rethinkdb = "==2.4.6"
 environs = "==7.4.0"
+python-dotenv = "==0.14.0"
+websockets = "==8.1"
 
 [requires]
 python_version = "3.7"
