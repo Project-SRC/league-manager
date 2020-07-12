@@ -21,9 +21,9 @@ class User(BaseModel):
     nickname: Optional[str]
     email: str
     profile_picture: Optional[HttpUrl] = None
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: datetime = None
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    deleted_at: Optional[datetime] = None
     is_manager: bool = None
     is_driver: bool = None
     is_steward: bool = None

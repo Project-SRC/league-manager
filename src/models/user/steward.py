@@ -6,6 +6,7 @@ from uuid import UUID
 
 class Steward(User):
     id: Optional[UUID]
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    deactivated_at: Optional[datetime] = None
     active: bool = None

@@ -9,9 +9,9 @@ Records = List[UUID]
 
 class League(BaseModel):
     id: Optional[UUID]
-    created_at: datetime
-    updated_at: datetime
-    ended_at: Optional[datetime]
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    ended_at: Optional[datetime] = None
     tracks: Records
     teams: Records
     drivers: Records

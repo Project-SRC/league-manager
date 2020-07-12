@@ -7,9 +7,9 @@ from uuid import UUID
 class Track(BaseModel):
     id: Optional[UUID]
     name: str
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: datetime = None
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    deleted_at: Optional[datetime] = None
     founded: date
     type: str  # [Circuit, Rally, City Circuit, ...] -> TODO: Create Enum for track type -> https://pydantic-docs.helpmanual.io/usage/types/#enums-and-choices
     localtion: Optional[str]  # TODO: Update to use Geolocation

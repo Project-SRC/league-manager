@@ -7,9 +7,9 @@ from uuid import UUID
 class Race(BaseModel):
     # TODO: Finalize class
     id: UUID
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: datetime
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    deleted_at: Optional[datetime] = None
     track: UUID
     number_laps: Optional[int]
     race_time: Optional[str]

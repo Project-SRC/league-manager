@@ -11,9 +11,9 @@ class Team(BaseModel):
     founded: date
     team_chief: UUID
     logo: Optional[HttpUrl]
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: datetime = None
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
+    deleted_at: Optional[datetime] = None
     total_points: int = 0
     total_races: int = 0
     championships_won: int = 0

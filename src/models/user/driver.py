@@ -5,8 +5,8 @@ from uuid import UUID
 
 class Driver(User):
     id: Optional[UUID]
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = datetime.now()
+    updated_at: datetime = datetime.now()
     current_team: Optional[UUID] = None
     country: UUID
     total_podiums: int = 0
