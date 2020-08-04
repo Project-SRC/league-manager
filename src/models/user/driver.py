@@ -7,6 +7,7 @@ class Driver(User):
     id: Optional[UUID]
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
+    deleted_at: Optional[datetime] = None
     current_team: Optional[UUID] = None
     country: UUID
     total_podiums: int = 0
