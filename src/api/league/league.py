@@ -57,7 +57,7 @@ async def get_league(
         and League.parse_obj(database_obj.get("response_message")).ended_at != None
     ):
         raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} it's deleted."
+            status_code=409, detail=f"Object with ID {identifier} is deleted."
         )
     else:
         return League.parse_obj(database_obj.get("response_message"))
@@ -73,7 +73,7 @@ async def create_league(
         data = json.loads(league.json())
         fixed_id = verify_id(league)
         if fixed_id:
-            database_obj = run(operation, data)
+            database_obj = await run(operation, data)
         else:
             data.pop("id")
 
@@ -86,10 +86,14 @@ async def create_league(
             )
         else:
             if not fixed_id:
-                league.id = database_obj.get("response_message").get("generated_keys")[
-                    0
-                ]
-        return league
+                data.update(
+                    {
+                        "id": database_obj.get("response_message").get(
+                            "generated_keys"
+                        )[0]
+                    }
+                )
+            return League.parse_obj(data)
     else:
         raise HTTPException(
             status_code=403, detail=f"Object already exists on database."

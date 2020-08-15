@@ -57,7 +57,7 @@ async def get_team(
         and Team.parse_obj(database_obj.get("response_message")).deleted_at != None
     ):
         raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} it's deleted."
+            status_code=409, detail=f"Object with ID {identifier} is deleted."
         )
     else:
         return Team.parse_obj(database_obj.get("response_message"))
@@ -71,7 +71,7 @@ async def create_team(team: Team, current_user: User = Depends(get_current_activ
         data = json.loads(team.json())
         fixed_id = verify_id(team)
         if fixed_id:
-            database_obj = run(operation, data)
+            database_obj = await run(operation, data)
         else:
             data.pop("id")
 
@@ -84,10 +84,14 @@ async def create_team(team: Team, current_user: User = Depends(get_current_activ
             )
         else:
             if not fixed_id:
-                team.id = database_obj.get("response_message").get("generated_keys")[
-                    0
-                ]
-        return team
+                data.update(
+                    {
+                        "id": database_obj.get("response_message").get(
+                            "generated_keys"
+                        )[0]
+                    }
+                )
+            return Team.parse_obj(data)
     else:
         raise HTTPException(
             status_code=403, detail=f"Object already exists on database."

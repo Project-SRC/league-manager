@@ -57,7 +57,7 @@ async def get_track(
         and Track.parse_obj(database_obj.get("response_message")).deleted_at != None
     ):
         raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} it's deleted."
+            status_code=409, detail=f"Object with ID {identifier} is deleted."
         )
     else:
         return Track.parse_obj(database_obj.get("response_message"))
@@ -73,7 +73,7 @@ async def create_track(
         data = json.loads(track.json())
         fixed_id = verify_id(track)
         if fixed_id:
-            database_obj = run(operation, data)
+            database_obj = await run(operation, data)
         else:
             data.pop("id")
 
@@ -86,10 +86,14 @@ async def create_track(
             )
         else:
             if not fixed_id:
-                track.id = database_obj.get("response_message").get("generated_keys")[
-                    0
-                ]
-        return track
+                data.update(
+                    {
+                        "id": database_obj.get("response_message").get(
+                            "generated_keys"
+                        )[0]
+                    }
+                )
+            return Track.parse_obj(data)
     else:
         raise HTTPException(
             status_code=403, detail=f"Object already exists on database."
