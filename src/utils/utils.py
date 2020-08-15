@@ -1,8 +1,12 @@
-from uuid import UUID
+from pydantic.main import ModelMetaclass
 from src.db.db import run
+from typing import NewType
+from uuid import UUID
 import re
 
 VALID_TIME_REGEX = "([0-9]+)?(\\:)?([0-9]{2})?(\\:)?([0-9]{2})\\.([0-9]{3})"
+
+CustomClass = NewType("CustomClass", ModelMetaclass)
 
 
 def verify_id(obj):
@@ -20,6 +24,28 @@ async def verify_exists_by_id(identifier: str, database: str, table: str):
         or database_obj.get("response_message").get("deactivated_at", False) is None
     ):
         return True
+    else:
+        return False
+
+
+async def get_object_by_id(
+    identifier: str, database: str, table: str, record: CustomClass
+):
+    operation = "get"
+    payload = {"database": database, "table": table, "identifier": identifier}
+    database_obj = await run(operation, payload)
+    if len(database_obj.get("response_message")) != 0 and (
+        database_obj.get("response_message").get("deleted_at", False) is None
+        or database_obj.get("response_message").get("ended_at", False) is None
+        or database_obj.get("response_message").get("terminated_at", False) is None
+        or database_obj.get("response_message").get("deactivated_at", False) is None
+    ):
+        try:
+            obj = record.parse_obj(database_obj.get("response_message"))
+        except Exception:
+            return None
+        else:
+            return obj
     else:
         return False
 
