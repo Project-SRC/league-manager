@@ -28,8 +28,7 @@ before_install:
 
 install:
   - pip install pipenv
-  - pipenv lock --python $(which python) --requirements > requirements.txt
-  - pip install -r requirements.txt
+  - pipenv install
 
 
 jobs:

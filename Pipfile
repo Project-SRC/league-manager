@@ -9,6 +9,7 @@ black = "==19.10b0"
 bandit = "==1.6.2"
 flake8 = "*"
 pytest = "*"
+requests = "*"
 
 [packages]
 fastapi = "==0.54.1"
