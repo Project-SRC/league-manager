@@ -7,6 +7,8 @@ verify_ssl = true
 ipdb = "*"
 black = "==19.10b0"
 bandit = "==1.6.2"
+flake8 = "*"
+pytest = "*"
 
 [packages]
 fastapi = "==0.54.1"
@@ -23,6 +25,7 @@ rethinkdb = "==2.4.6"
 environs = "==7.4.0"
 python-dotenv = "==0.14.0"
 websockets = "==8.1"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.7"
