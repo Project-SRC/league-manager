@@ -27,12 +27,15 @@ before_install:
   - npm install
 
 install:
-  - pip install pipenv
-  - pipenv install
+  - pip install -U pip
+  - pip install pipenv --no-cache-dir
+  - pip install pytest pytest-cov --no-cache-dir
+  - pipenv lock --python 3 -r > requirements.txt
+  - pip install -r requirements.txt --no-cache-dir
 
 
 jobs:
-  allow_failures:
+  include:
     - stage: lint
       before_install: skip
       script:
@@ -41,7 +44,6 @@ jobs:
       before_install: skip
       script:
         - bandit -r src -x tests/
-  include:
     - stage: build_dev
       if: branch = develop
       before_install: skip
