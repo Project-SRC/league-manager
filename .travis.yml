@@ -37,17 +37,23 @@ install:
 
 jobs:
   allow_failures:
+    env:
+      - CAN_FAIL=true
+  include:
     - stage: lint
+      env:
+        - CAN_FAIL=true
       before_install: skip
       script:
         - python3 -m pip install flake8
         - python3 -m flake8 src/
     - stage: security
+      env:
+        - CAN_FAIL=true
       before_install: skip
       script:
         -python3 -m pip install bandit
         - python3 -m bandit -r src -x tests/
-  include:
     - stage: build_dev
       if: branch = develop
       before_install: skip
