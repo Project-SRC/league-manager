@@ -1,5 +1,8 @@
 # League Manager - Project SRC - FastAPI
 
+[![codecov](https://codecov.io/gh/Project-SRC/league-manager/branch/develop/graph/badge.svg)](https://codecov.io/gh/Project-SRC/league-manager)
+[![Build Status](https://travis-ci.com/Project-SRC/league-manager.svg?branch=develop)](https://travis-ci.com/Project-SRC/league-manager)
+
 The League Manager API is responsible to manage all leagues for the Project SRC stack.
 
 ## Dependencies
