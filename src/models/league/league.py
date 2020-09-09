@@ -1,5 +1,5 @@
-from datetime import date, datetime
-from pydantic import BaseModel, HttpUrl
+from datetime import datetime
+from pydantic import BaseModel
 from typing import Optional, List, Dict
 from uuid import UUID
 
@@ -22,4 +22,3 @@ class League(BaseModel):
     points: List[int]  # TODO: Create a class have different styles of pointing
     doubled_points: bool = False
     prize: Optional[Prize] = None
-

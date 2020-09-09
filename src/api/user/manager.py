@@ -1,14 +1,12 @@
 import ujson as json
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.encoders import jsonable_encoder
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException
 from environs import Env
-from src.utils.utils import verify_id, verify_exists_by_id, get_object_by_id
+from src.utils.utils import verify_exists_by_id, get_object_by_id
 from src.models.user.manager import Manager
 from src.models.user.user import User
 from src.api.user.user import get_current_active_user
 from src.db.db import run
-from uuid import uuid4 as uuid
 
 # GET - Read
 # POST - Create
@@ -90,7 +88,7 @@ async def get_manager(
         )
     elif (
         database_obj.get("status_code") == 200
-        and Manager.parse_obj(manager).deactivated_at != None
+        and Manager.parse_obj(manager).deactivated_at is not None
     ):
         raise HTTPException(
             status_code=409, detail=f"Object with ID {identifier} is deleted."

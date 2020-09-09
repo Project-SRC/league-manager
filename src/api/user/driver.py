@@ -1,14 +1,12 @@
 import ujson as json
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.encoders import jsonable_encoder
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException
 from environs import Env
-from src.utils.utils import verify_id, verify_exists_by_id, get_object_by_id
+from src.utils.utils import verify_exists_by_id, get_object_by_id
 from src.models.user.driver import Driver
 from src.models.user.user import User
 from src.api.user.user import get_current_active_user
 from src.db.db import run
-from uuid import uuid4 as uuid
 
 # GET - Read
 # POST - Create
@@ -90,7 +88,7 @@ async def get_driver(
         )
     elif (
         database_obj.get("status_code") == 200
-        and Driver.parse_obj(driver).deleted_at != None
+        and Driver.parse_obj(driver).deleted_at is not None
     ):
         raise HTTPException(
             status_code=409, detail=f"Object with ID {identifier} is deleted."
@@ -135,7 +133,7 @@ async def create_driver(
                 )
 
             data.update(
-                {"password": 64 * "*", "is_driver": True, "driver_id": data.get("id"),}
+                {"password": 64 * "*", "is_driver": True, "driver_id": data.get("id")}
             )
             await update_user(user_id=user, driver_id=data.get("id"), remove=False)
             return Driver.parse_obj(data)
@@ -178,7 +176,9 @@ async def update_driver(
             driver = (
                 database_obj.get("response_message").get("changes")[0].get("new_val")
             )
-            driver.update({"password": 64 * "*", "is_driver": True, "driver_id": identifier})
+            driver.update(
+                {"password": 64 * "*", "is_driver": True, "driver_id": identifier}
+            )
             return Driver.parse_obj(
                 database_obj.get("response_message").get("changes")[0].get("new_val")
             )

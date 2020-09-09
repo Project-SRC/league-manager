@@ -3,6 +3,7 @@ from src.models.user.user import User
 from typing import Optional
 from uuid import UUID
 
+
 class Driver(User):
     id: Optional[UUID]
     created_at: datetime = datetime.now()

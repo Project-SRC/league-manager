@@ -14,7 +14,9 @@ class Race(BaseModel):
     track: UUID
     number_laps: Optional[int]
     race_time: Optional[str]
-    driver_max: int # Max number of drivers in the Race
+    driver_max: int  # Max number of drivers in the Race
+
 
 class GranTurismoRace(Race):
+    # TODO: Future update to integrate with GT Sport
     pass

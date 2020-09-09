@@ -3,7 +3,6 @@ from enum import Enum
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional
 from uuid import UUID
-from src.utils.utils import validated_string_time
 
 # CONSTANTS
 VALID_TIME_REGEX = "([0-9]+)?(\\:)?([0-9]{2})?(\\:)?([0-9]{2})\\.([0-9]{3})"

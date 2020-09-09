@@ -6,8 +6,6 @@ from jwt import PyJWTError
 from passlib.context import CryptContext
 from src.db.db import run
 from src.models.user.user import User, Token, TokenData
-from src.utils.utils import get_object_by_id
-from uuid import uuid4 as uuid
 import jwt
 import ujson as json
 
@@ -94,7 +92,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
-    if current_user.deleted_at != None:
+    if current_user.deleted_at is not None:
         raise HTTPException(status_code=400, detail="Deleted User")
     return current_user
 

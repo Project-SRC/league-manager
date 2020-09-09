@@ -1,6 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.openapi.utils import get_openapi
-from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi import FastAPI
 from environs import Env
 from src.api.team.contract import ROUTER as CONTRACT
 from src.api.country.country import ROUTER as COUNTRY
@@ -14,7 +12,6 @@ from src.api.team.team import ROUTER as TEAM
 from src.api.track.track import ROUTER as TRACK
 from src.api.user.user import ROUTER as USER
 import uvicorn
-import ujson as json
 
 env = Env()
 env.read_env()

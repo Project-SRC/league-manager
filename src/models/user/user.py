@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 from uuid import UUID
