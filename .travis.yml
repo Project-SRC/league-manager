@@ -43,7 +43,7 @@ jobs:
       before_install: skip
       script:
         - python3 -m pip install flake8
-        - python3 -m flake8 src/
+        - python3 -m flake8 src/ --ignore=E501,F541,W503 --exclude __init__.py
     - stage: security
       env:
         - CAN_FAIL=true
