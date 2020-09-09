@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from environs import Env
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from src.utils.utils import get_object_by_id
 from jwt import PyJWTError
 from passlib.context import CryptContext
 from src.db.db import run
@@ -21,10 +22,12 @@ SECRET_KEY = env.str("SECRET_KEY")
 ALGORITHM = env.str("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = env.int("ACCESS_TOKEN_EXPIRE_MINUTES", default=30)
 DATABASE = env.str("RDB_DB", default="LEAGUE")
+
+# Global variables
 TABLE = "user"
+NOW = str(datetime.now())
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/token")
 
 
@@ -49,6 +52,24 @@ async def get_user(username: str):
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+async def create_user(user: dict):
+    operation = "insert"
+    data = json.loads(User.parse_obj({**user}).json())
+    data.pop("id")
+    payload = {"database": DATABASE, "table": TABLE, "data": data}
+    database_obj = await run(operation, payload)
+    if database_obj.get("status_code") != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+        )
+    else:
+        data.update(
+            {"id": database_obj.get("response_message").get("generated_keys")[0]}
+        )
+        return User.parse_obj(data)
 
 
 async def authenticate_user(username: str, password: str):
@@ -111,9 +132,46 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
 
 
 @ROUTER.get("/me")
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+
+@ROUTER.post("/register")
+async def register_user(form_data: dict):
+    user = await create_user(form_data)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
+
+
+@ROUTER.delete("/close/{identifier}")
+async def close_account(identifier: str):
+    # Soft remove (no data is deleted)
+    exists = await get_object_by_id(identifier, DATABASE, TABLE, User)
+    if exists:
+        operation = "update"
+        data = {"updated_at": NOW, "deleted_at": NOW}
+        payload = {
+            "database": DATABASE,
+            "table": TABLE,
+            "identifier": identifier,
+            "data": data,
+        }
+        database_obj = await run(operation, payload)
+        if database_obj.get("status_code") != 200:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            )
+        else:
+            return {"detail": f"{identifier} deleted"}
+    else:
+        raise HTTPException(
+            status_code=403, detail=f"Driver with ID {identifier} doesn't exist."
+        )
