@@ -1,0 +1,99 @@
+dist: bionic
+
+language: python
+
+python:
+  - "3.7"
+  - "3.8"
+
+services:
+  - docker
+
+env:
+  global:
+    - TAG_REF=$(git describe --tags --always)
+    - NAME=league-manager
+    - CACHE_FOLDER=$HOME/docker-image
+    - CACHE_FILE=${CACHE_FOLDER}/${NAME}-${TAG_REF}.tar.gz
+
+cache:
+  directories:
+    - "$HOME/.npm"
+    - "$HOME/.cache/yarn"
+    - "$HOME/.cache/pip"
+    - "$HOME/docker-image"
+
+before_install:
+  - npm install
+
+install:
+  - deactivate
+  - sudo apt-get -y install python3-pip python3-setuptools python3-wheel
+  - python3 -m pip install -U pip
+
+
+jobs:
+  allow_failures:
+    - env:
+      - CAN_FAIL=true
+  include:
+    - stage: lint
+      env:
+        - CAN_FAIL=true
+      before_install: skip
+      script:
+        - python3 -m pip install flake8
+        - python3 -m flake8 src/ --ignore=E501,F541,W503 --exclude __init__.py
+    - stage: security
+      env:
+        - CAN_FAIL=true
+      before_install: skip
+      script:
+        - python3 -m pip install bandit
+        - python3 -m bandit -r src -x tests/
+    - stage: build_dev
+      if: branch = develop
+      before_install: skip
+      script:
+        - docker build -t ${DOCKER_USERNAME}/${NAME}:latest-${TAG_REF} .
+        - mkdir -p ${CACHE_FOLDER}
+        - docker save $(docker images --filter "reference=${DOCKER_USERNAME}/${NAME}:latest-${TAG_REF}" -q) | gzip > ${CACHE_FILE}
+    - stage: build_prod
+      if: branch = master
+      before_install: skip
+      script:
+        - docker build -t ${DOCKER_USERNAME}/${NAME}:latest .
+        - mkdir -p ${CACHE_FOLDER}
+        - docker save $(docker images --filter "reference=${DOCKER_USERNAME}/${NAME}:latest" -q) | gzip -c > ${CACHE_FILE}
+    - stage: deploy_image
+      if: branch = master
+      before_install: skip
+      script:
+        - ls -la ${CACHE_FOLDER}
+        - if [[ -f ${CACHE_FILE} ]]; then docker load -i ${CACHE_FILE}; fi
+        - docker tag $(docker images -q) ${DOCKER_USERNAME}/${NAME}:latest
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker push ${DOCKER_USERNAME}/${NAME}:latest
+    - stage: deploy_image
+      if: branch = develop
+      before_install: skip
+      script:
+        - ls -la ${CACHE_FOLDER}
+        - if [[ -f ${CACHE_FILE} ]]; then docker load -i ${CACHE_FILE}; fi
+        - docker tag $(docker images -q) ${DOCKER_USERNAME}/${NAME}:latest-${TAG_REF}
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker push ${DOCKER_USERNAME}/${NAME}:latest-${TAG_REF}
+
+
+script:
+  - export PYTHONPATH=$(pwd)
+  - cat .env.example > .env
+  - python3 -m pip install pipenv
+  - python3 -m pipenv lock --python 3 -r > requirements.txt
+  - python3 -m pip install -r requirements.txt
+  - python3 -m pytest src/
+  - python3 -m pytest --cov=src src/
+  - python3 -m pytest --cov=src --cov-report xml src/
+  - unset PYTHONPATH
+  - rm -rf .env
+  - bash <(curl -s https://codecov.io/bash)

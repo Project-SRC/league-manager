@@ -1,6 +1,6 @@
 {
   "name": "league-manager",
-  "version": "0.0.1",
+  "version": "0.0.1-alpha",
   "description": "API for Project SRC - League Manager - Built with FastAPI",
   "main": "src/main.py",
   "repository": "https://github.com/Project-SRC/league-manager",
@@ -9,5 +9,8 @@
   "private": false,
   "scripts": {
     "release": "standard-version"
+  },
+  "dependencies": {
+    "standard-version": "^9.0.0"
   }
 }

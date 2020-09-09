@@ -1,5 +1,8 @@
 # League Manager - Project SRC - FastAPI
 
+[![codecov](https://codecov.io/gh/Project-SRC/league-manager/branch/develop/graph/badge.svg)](https://codecov.io/gh/Project-SRC/league-manager)
+[![Build Status](https://travis-ci.com/Project-SRC/league-manager.svg?branch=develop)](https://travis-ci.com/Project-SRC/league-manager)
+
 The League Manager API is responsible to manage all leagues for the Project SRC stack.
 
 ## Dependencies
@@ -13,7 +16,15 @@ The League Manager API configuration is through operating system environment var
 
 The available settings are:
 
-> To be defined
+- `MOCK`: To indicates if the running version works with mocking data.
+- `TEST`: To indicates if the running version is used for testing purposes.
+- `VERSION`: Version of the API (service).
+- `WS_ADDRESS`: The address of the WebSocket service to communicate with the database (see [Rethink Data Manager](https://github.com/Project-SRC/rethink-data-manager)).
+- `WS_PORT`: The port of the WebSocket service.
+- `RDB_DB`: Database name for the API data (this service uses Rethink DB with Rethink Data Manager service)
+- `SECRET_KEY`: Encryption key for passwords (user related).
+- `ALGORITHM`: Encryption algorithm.
+- `ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration of the access tokens for users.
 
 If you have questions about how to set environment variables check these links:
 
@@ -26,7 +37,7 @@ If you have questions about how to set environment variables check these links:
 
 ### Installing VirtualEnvWrapper
 
-We recommend using a virtual environment created by the __virtualenvwrapper__ module. There is a virtual site with English instructions for installation that can be accessed [here](https://virtualenvwrapper.readthedocs.io/en/latest/install.html). But you can also follow these steps below for installing the environment:
+We recommend using a virtual environment created by the **virtualenvwrapper** module. There is a virtual site with English instructions for installation that can be accessed [here](https://virtualenvwrapper.readthedocs.io/en/latest/install.html). But you can also follow these steps below for installing the environment:
 
 ```shell
 sudo python3 -m pip install -U pip             # Update pip
