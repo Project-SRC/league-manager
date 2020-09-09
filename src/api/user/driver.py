@@ -27,9 +27,11 @@ DATABASE = env.str("RDB_DB", default="LEAGUE")
 # Global Variables
 TABLE = "driver"
 USER_TABLE = "user"
+NOW = str(datetime.now())
 
 # Mapping Variables
-USER_MAP = ["username", "name", "email"]
+USER_MAP = ["username", "name", "email", "password", "is_driver"]
+DRIVER_MAP = ["id", "password"]
 
 
 async def verify_exists(driver: dict):
@@ -42,8 +44,35 @@ async def verify_exists(driver: dict):
     else:
         return False
 
-async def update_user(user_id: str):
-    pass
+
+async def update_user(user_id: str, driver_id: str, remove: bool):
+    user_exist = await verify_exists_by_id(user_id, DATABASE, USER_TABLE)
+    if not remove:
+        driver_exist = await verify_exists_by_id(driver_id, DATABASE, TABLE)
+    else:
+        driver_exist = True
+    if user_exist and driver_exist:
+        operation = "update"
+        body = {"updated_at": NOW, "is_driver": not remove, "driver_id": driver_id}
+        payload = {
+            "database": DATABASE,
+            "table": USER_TABLE,
+            "identifier": user_id,
+            "data": body,
+        }
+        database_obj = await run(operation, payload)
+        if database_obj.get("status_code") != 200:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Database couldn't update the object with the ID {user_id}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            )
+        else:
+            return True
+    else:
+        raise HTTPException(
+            status_code=403, detail=f"User or Driver doesn't exist in the database."
+        )
+
 
 @ROUTER.get("/{user}/driver/{identifier}", response_model=Driver)
 async def get_driver(
@@ -52,6 +81,8 @@ async def get_driver(
     operation = "get"
     payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
     database_obj = await run(operation, payload)
+    driver = database_obj.get("response_message")
+    driver.update({"password": 64 * "*"})
     if database_obj.get("status_code") != 200:
         raise HTTPException(
             status_code=404,
@@ -59,13 +90,13 @@ async def get_driver(
         )
     elif (
         database_obj.get("status_code") == 200
-        and Driver.parse_obj(database_obj.get("response_message")).deleted_at != None
+        and Driver.parse_obj(driver).deleted_at != None
     ):
         raise HTTPException(
             status_code=409, detail=f"Object with ID {identifier} is deleted."
         )
     else:
-        return Driver.parse_obj(database_obj.get("response_message"))
+        return Driver.parse_obj(driver)
 
 
 @ROUTER.post("/{user}/driver/", response_model=Driver)
@@ -75,15 +106,16 @@ async def create_driver(
     user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
     if not user_exist:
         raise HTTPException(
-            status_code=404, detail=f"User with ID {user} doesn't exits"
+            status_code=404, detail=f"User with ID {user} doesn't exist"
         )
 
     user_vals = json.loads(user_exist.json())
     user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
     exists = await verify_exists(driver)
-    if not exists:
+    if not exists and not user_vals.get("is_driver", False):
         operation = "insert"
-        data = {**driver, **user_vals}
+        data = json.loads(Driver.parse_obj({**driver, **user_vals}).json())
+        data = {key: value for key, value in data.items() if key not in DRIVER_MAP}
         fixed_id = driver.get("id", False)
         payload = {"database": DATABASE, "table": TABLE, "data": data}
         database_obj = await run(operation, payload)
@@ -101,13 +133,14 @@ async def create_driver(
                         )[0]
                     }
                 )
-                data.update({"password": 64 * "*"})
-            # TODO: Update User
+
+            data.update(
+                {"password": 64 * "*", "is_driver": True, "driver_id": data.get("id"),}
+            )
+            await update_user(user_id=user, driver_id=data.get("id"), remove=False)
             return Driver.parse_obj(data)
     else:
-        raise HTTPException(
-            status_code=403, detail=f"Driver already registered."
-        )
+        raise HTTPException(status_code=403, detail=f"Driver already registered.")
 
 
 @ROUTER.patch("/{user}/driver/{identifier}", response_model=Driver)
@@ -117,14 +150,78 @@ async def update_driver(
     identifier: str,
     current_user: User = Depends(get_current_active_user),
 ):
-    pass
+    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
+    if not user_exist:
+        raise HTTPException(
+            status_code=404, detail=f"User with ID {user} doesn't exist"
+        )
+
+    user_vals = json.loads(user_exist.json())
+    user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
+    exists = await get_object_by_id(identifier, DATABASE, TABLE, Driver)
+    if not exists:
+        operation = "update"
+        body.update({"updated_at": NOW})
+        payload = {
+            "database": DATABASE,
+            "table": TABLE,
+            "identifier": identifier,
+            "data": body,
+        }
+        database_obj = await run(operation, payload)
+        if database_obj.get("status_code") != 200:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database couldn't update the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            )
+        else:
+            driver = (
+                database_obj.get("response_message").get("changes")[0].get("new_val")
+            )
+            driver.update({"password": 64 * "*", "is_driver": True, "driver_id": identifier})
+            return Driver.parse_obj(
+                database_obj.get("response_message").get("changes")[0].get("new_val")
+            )
+    else:
+        raise HTTPException(
+            status_code=403, detail=f"Driver with ID {identifier} doesn't exist."
+        )
 
 
 @ROUTER.delete("/{user}/driver/{identifier}")
 async def remove_driver(
     user: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    pass
+    # Soft remove (no data is deleted)
+    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
+    if not user_exist:
+        raise HTTPException(
+            status_code=404, detail=f"User with ID {user} doesn't exist"
+        )
+
+    exists = await get_object_by_id(identifier, DATABASE, TABLE, Driver)
+    if not exists:
+        operation = "update"
+        data = {"updated_at": NOW, "deleted_at": NOW}
+        payload = {
+            "database": DATABASE,
+            "table": TABLE,
+            "identifier": identifier,
+            "data": data,
+        }
+        database_obj = await run(operation, payload)
+        if database_obj.get("status_code") != 200:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            )
+        else:
+            await update_user(user_id=user, driver_id=None, remove=True)
+            return {"detail": f"{identifier} deleted"}
+    else:
+        raise HTTPException(
+            status_code=403, detail=f"Driver with ID {identifier} doesn't exist."
+        )
 
 
 @ROUTER.options("/driver")
