@@ -18,4 +18,4 @@ COPY .env.example .env
 
 RUN export PYTHONPATH=$(pwd)
 
-CMD ["uvicorn", "src.main:league", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "main:league", "--host", "0.0.0.0", "--port", "80"]

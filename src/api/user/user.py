@@ -2,11 +2,12 @@ from datetime import datetime, timedelta
 from environs import Env
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from src.utils.utils import get_object_by_id
+from utils.utils import get_object_by_id
 from jwt import PyJWTError
 from passlib.context import CryptContext
-from src.db.db import run
-from src.models.user.user import User, Token, TokenData
+from db.db import run
+from models.user.user import User, Token, TokenData
+from service.service import get_variable
 import jwt
 import ujson as json
 
@@ -15,13 +16,10 @@ import ujson as json
 ROUTER = APIRouter()
 
 # Enviroment reader
-env = Env()
-env.read_env()
-
-SECRET_KEY = env.str("SECRET_KEY")
-ALGORITHM = env.str("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = env.int("ACCESS_TOKEN_EXPIRE_MINUTES", default=30)
-DATABASE = env.str("RDB_DB", default="LEAGUE")
+SECRET_KEY = get_variable("SECRET_KEY")
+ALGORITHM = get_variable("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = get_variable("ACCESS_TOKEN_EXPIRE_MINUTES", int) or 30
+DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
 
 # Global variables
 TABLE = "user"

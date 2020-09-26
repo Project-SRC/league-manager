@@ -6,12 +6,11 @@ from datetime import datetime
 from environs import Env
 from uuid import uuid4
 from websockets import ConnectionClosed
+from service.service import get_variable
 
 # Environment Variables
-env = Env()
-env.read_env()
-WS_ADDRESS = env.str("WS_ADDRESS", "localhost")
-WS_PORT = env.int("WS_PORT", 8765)
+WS_ADDRESS = get_variable("WS_ADDRESS", str) or "localhost"
+WS_PORT = get_variable("WS_PORT", int) or 8765
 
 # Logger
 _logger = logging.getLogger(__name__)

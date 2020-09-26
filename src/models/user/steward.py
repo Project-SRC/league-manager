@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.models.user.user import User
+from models.user.user import User
 from typing import Optional
 from uuid import UUID
 

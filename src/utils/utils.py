@@ -1,5 +1,5 @@
 from pydantic.main import ModelMetaclass
-from src.db.db import run
+from db.db import run
 from typing import NewType
 from uuid import UUID
 import re
