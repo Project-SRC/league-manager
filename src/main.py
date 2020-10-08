@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from environs import Env
 from src.api.team.contract import ROUTER as CONTRACT
 from src.api.country.country import ROUTER as COUNTRY
 from src.api.user.driver import ROUTER as DRIVER
@@ -11,14 +10,12 @@ from src.api.user.steward import ROUTER as STEWARD
 from src.api.team.team import ROUTER as TEAM
 from src.api.track.track import ROUTER as TRACK
 from src.api.user.user import ROUTER as USER
+from src.service.service import get_variable
 import uvicorn
 
-env = Env()
-env.read_env()
-
-MOCK = env.bool("MOCK", default=False)
-TEST = env.bool("TEST", default=False)
-VERSION = env.str("VERSION", default="0.0.1")
+MOCK = get_variable("MOCK", bool) or False
+TEST = get_variable("TEST", bool) or False
+VERSION = get_variable("VERSION", str) or "0.0.1"
 
 league = FastAPI(
     title="League API 🏎🏆🏁", description="Project SRC - API", version=VERSION
@@ -44,4 +41,4 @@ async def read_root():
 
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:league", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:league", host="127.0.0.1", port=8000, reload=True)

@@ -21,6 +21,7 @@ class TrackDirection(str, Enum):
     reversed = "Reversed"
 
 
+# REF: Create Enum for track type -> https://pydantic-docs.helpmanual.io/usage/types/#enums-and-choices
 class Track(BaseModel):
     id: Optional[UUID]
     name: str
@@ -35,7 +36,6 @@ class Track(BaseModel):
     length: float  # Length in Km -> Convert to Miles if needed
     number_curves: int
     map: Optional[HttpUrl]
-    record: Optional[str] = Field(None, regex=VALID_TIME_REGEX, description="Expected time format: HH:MM:SSS.mmm")
-
-
-# REF: Create Enum for track type -> https://pydantic-docs.helpmanual.io/usage/types/#enums-and-choices
+    record: Optional[str] = Field(
+        None, regex=VALID_TIME_REGEX, description="Expected time format: HH:MM:SSS.mmm"
+    )

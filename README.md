@@ -123,7 +123,7 @@ During the lint process the terminal will report a bug report and warnings from 
 To build the API Auth service just follow the script below:
 
 ```shell
-docker build -t api-auth:<version> .
+docker build -t league-manager:<version> .
 ```
 
 Setting the version on `<version>`. E.g.: `latest`, `stable`, `alpha`, `1.0.0` and etc.
@@ -131,13 +131,13 @@ Setting the version on `<version>`. E.g.: `latest`, `stable`, `alpha`, `1.0.0` a
 Make sure you have logged in to the [docker hub](https://hub.docker.com/) service. If you do not, run the `docker login` command.
 
 ```shell
-docker push api-auth:<version>
+docker push league-manager:<version>
 ```
 
 Finally, if the system will be executed by the built container docker, execute:
 
 ```shell
-docker run -d --name api-auth -e .env api-auth
+docker run -d --name league-manager -e .env league-manager
 ```
 
 **Observation**: Assumes that the settings are listed in the `.env` file. For more settings, execution options, and supplemental documentation, go to [Docker](https://docs.docker.com/)
