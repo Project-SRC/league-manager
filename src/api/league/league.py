@@ -7,6 +7,7 @@ from src.models.league.league import League
 from src.models.user.user import User
 from src.api.user.user import get_current_active_user
 from src.db.db import run
+from src.service.service import get_variable
 
 # GET - Read
 # POST - Create
@@ -18,9 +19,7 @@ from src.db.db import run
 ROUTER = APIRouter()
 
 # Environment Variables
-env = Env()
-env.read_env()
-DATABASE = env.str("RDB_DB", default="LEAGUE")
+DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
 
 # Global Variables
 TABLE = "league"

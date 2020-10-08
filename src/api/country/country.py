@@ -1,12 +1,12 @@
 import ujson as json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from environs import Env
 from src.utils.utils import verify_id, verify_exists_by_id
 from src.models.country.country import Country
 from src.models.user.user import User
 from src.api.user.user import get_current_active_user
 from src.db.db import run
+from src.service.service import get_variable
 
 # GET - Read
 # POST - Create
@@ -18,9 +18,7 @@ from src.db.db import run
 ROUTER = APIRouter()
 
 # Environment Variables
-env = Env()
-env.read_env()
-DATABASE = env.str("RDB_DB", default="LEAGUE")
+DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
 
 # Global Variables
 TABLE = "country"
