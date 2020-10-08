@@ -13,6 +13,7 @@ VARIABLES = [
     "ACCESS_TOKEN_EXPIRE_MINUTES",
 ]
 
+
 def get_variable(name: str = None, function: FunctionType = str):
     env = Env()
     env.read_env()
