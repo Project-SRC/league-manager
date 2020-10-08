@@ -6,7 +6,7 @@ from datetime import datetime
 from environs import Env
 from uuid import uuid4
 from websockets import ConnectionClosed
-from service.service import get_variable
+from src.service.service import get_variable
 
 # Environment Variables
 WS_ADDRESS = get_variable("WS_ADDRESS", str) or "localhost"

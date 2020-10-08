@@ -2,12 +2,12 @@ from datetime import datetime, timedelta
 from environs import Env
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from utils.utils import get_object_by_id
+from src.utils.utils import get_object_by_id
 from jwt import PyJWTError
 from passlib.context import CryptContext
-from db.db import run
-from models.user.user import User, Token, TokenData
-from service.service import get_variable
+from src.db.db import run
+from src.models.user.user import User, Token, TokenData
+from src.service.service import get_variable
 import jwt
 import ujson as json
 

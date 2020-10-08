@@ -1,12 +1,12 @@
 import ujson as json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from utils.utils import verify_id, verify_exists_by_id
-from models.country.country import Country
-from models.user.user import User
-from api.user.user import get_current_active_user
-from db.db import run
-from service.service import get_variable
+from src.utils.utils import verify_id, verify_exists_by_id
+from src.models.country.country import Country
+from src.models.user.user import User
+from src.api.user.user import get_current_active_user
+from src.db.db import run
+from src.service.service import get_variable
 
 # GET - Read
 # POST - Create

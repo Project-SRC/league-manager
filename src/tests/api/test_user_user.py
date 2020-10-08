@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from main import league as app
+from src.main import league as app
 
 client = TestClient(app)
 
