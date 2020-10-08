@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### 0.0.1-alpha (2020-09-09)
+## 0.1.0 (2020-10-08)
+
+### Features
+
+- [WIP] evolve api to fix env variables ([745a929](https://github.com/Project-SRC/league-manager/commit/745a9299864c7509e01fbfeb6f83ff204e4c9543))
+- update package importing ([a5fab68](https://github.com/Project-SRC/league-manager/commit/a5fab683aed0ddd39b6c67efb8783aba6900e9ae))
+
+### Chores
+
+- **release:** 0.0.1-alpha ([b744c23](https://github.com/Project-SRC/league-manager/commit/b744c23684a809c35cdf791c608070caa0d8b72c))
+
+### Refactor
+
+- update npm dependencies ([ae0fae5](https://github.com/Project-SRC/league-manager/commit/ae0fae543421d9229de3cb0ea55b00ee63c27397))
+
+## 0.0.1-alpha (2020-09-09)
 
 ### Features
 
