@@ -3,7 +3,6 @@ import logging
 import websockets
 import ujson as json
 from datetime import datetime
-from environs import Env
 from uuid import uuid4
 from websockets import ConnectionClosed
 from src.service.service import get_variable

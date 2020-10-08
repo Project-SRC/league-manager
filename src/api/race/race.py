@@ -1,7 +1,6 @@
 import ujson as json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
-from environs import Env
 from src.utils.utils import verify_id, verify_exists_by_id
 from src.models.race.race import Race
 from src.models.user.user import User
