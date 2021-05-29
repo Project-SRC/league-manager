@@ -6,11 +6,10 @@
   "repository": "https://github.com/Project-SRC/league-manager",
   "author": "João Pedro Sconetto",
   "license": "GPL-3.0-or-later",
-  "private": false,
   "scripts": {
     "release": "standard-version"
   },
   "dependencies": {
-    "standard-version": "^9.0.0"
+    "standard-version": "^9.3.0"
   }
 }
