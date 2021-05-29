@@ -90,7 +90,6 @@ script:
   - cat .env.example > .env
   - pip install -U pip
   - python3 -m pip install pipenv
-  - python3 -m pipenv install --dev
   - pip install -r requirements.txt
   - pytest src/
   - pytest --cov=src src/
