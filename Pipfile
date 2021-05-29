@@ -4,7 +4,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-ipdb = "==0.13.8"
+ipdb = "==0.13.4"
 black = "==21.5b1"
 bandit = "==1.7.0"
 flake8 = "==3.9.2"
