@@ -20,7 +20,6 @@ cache:
   directories:
     - "$HOME/.npm"
     - "$HOME/.cache/yarn"
-    - "$HOME/.cache/pip"
     - "$HOME/docker-image"
 
 before_install:
