@@ -4,12 +4,13 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-ipdb = "*"
+ipdb = "==0.13.8"
 black = "==21.5b1"
 bandit = "==1.7.0"
-flake8 = "*"
-pytest = "*"
-requests = "*"
+flake8 = "==3.9.2"
+pytest = "==6.2.4"
+requests = "==2.25.1"
+pytest-cov = "==2.12.0"
 
 [packages]
 fastapi = "==0.65.1"
@@ -18,17 +19,16 @@ ujson = "==4.0.2"
 pydantic = "==1.8.2"
 python-multipart = "==0.0.5"
 pyjwt = "==2.1.0"
-passlib = "*"
-bcrypt = "*"
+passlib = "==1.7.4"
+bcrypt = "==3.2.0"
 email-validator = "==1.1.2"
 starlette = "==0.14.2"
 rethinkdb = "==2.4.8"
 environs = "==9.3.2"
 websockets = "==9.1"
-pytest-cov = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.7"
 
 [pipenv]
 allow_prereleases = true

@@ -20,6 +20,7 @@ cache:
   directories:
     - "$HOME/.npm"
     - "$HOME/.cache/yarn"
+    - "$HOME/.cache/pip"
     - "$HOME/docker-image"
 
 before_install:
@@ -88,8 +89,7 @@ script:
   - export PYTHONPATH=$(pwd)
   - cat .env.example > .env
   - python3 -m pip install pipenv
-  - python3 -m pipenv lock --python 3 -r > requirements.txt
-  - python3 -m pip install -r requirements.txt
+  - python3 -m pipenv install --dev
   - python3 -m pytest src/
   - python3 -m pytest --cov=src src/
   - python3 -m pytest --cov=src --cov-report xml src/
