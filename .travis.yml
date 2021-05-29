@@ -3,8 +3,8 @@ dist: bionic
 language: python
 
 python:
-  - "3.7"
   - "3.8"
+  - "3.9"
 
 services:
   - docker
@@ -20,7 +20,7 @@ cache:
   directories:
     - "$HOME/.npm"
     - "$HOME/.cache/yarn"
-    - "$HOME/.cache/pip"
+    # - "$HOME/.cache/pip"
     - "$HOME/docker-image"
 
 before_install:
@@ -88,12 +88,14 @@ jobs:
 script:
   - export PYTHONPATH=$(pwd)
   - cat .env.example > .env
+  - pip install -U pip
   - python3 -m pip install pipenv
-  - python3 -m pipenv lock --python 3 -r > requirements.txt
-  - python3 -m pip install -r requirements.txt
-  - python3 -m pytest src/
-  - python3 -m pytest --cov=src src/
-  - python3 -m pytest --cov=src --cov-report xml src/
+  - python3 -m pipenv install --dev
+  - pip install -r requirements.txt
+  - pytest src/
+  - pytest --cov=src src/
+  - pytest --cov=src --cov-report xml src/
   - unset PYTHONPATH
   - rm -rf .env
+  - rm -rf requirements.txt
   - bash <(curl -s https://codecov.io/bash)

@@ -63,6 +63,10 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
+# Yarn
+.pnp.js
+.yarn/
+
 # dotenv environment variables file
 .env
 .env.test
