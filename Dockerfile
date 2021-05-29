@@ -6,9 +6,7 @@ RUN pip install --upgrade pip
 
 RUN pip install --no-cache-dir fastapi pipenv
 
-COPY Pipfile* /tmp/
-
-RUN cd /tmp && pipenv lock --python $(which python) --requirements > requirements.txt
+COPY requirements.txt /tmp/
 
 RUN pip install -r /tmp/requirements.txt --no-cache-dir
 
