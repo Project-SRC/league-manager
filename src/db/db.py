@@ -1,45 +1,35 @@
 import asyncio
-import logging
 import websockets
 import ujson as json
 from datetime import datetime
 from uuid import uuid4
 from websockets import ConnectionClosed
-from src.service.service import get_variable
+from src.config import settings, log
 
-# Environment Variables
-WS_ADDRESS = get_variable("WS_ADDRESS", str) or "localhost"
-WS_PORT = get_variable("WS_PORT", int) or 8765
-
-# Logger
-_logger = logging.getLogger(__name__)
-
-# Rethink Data Manager - Call type
 TYPE = "rethink-manager-call"
 
 
 async def communicate(operation: str, payload: dict, **kwargs):
+    addr: str = ""
     try:
-        addr = f"ws://{WS_ADDRESS}:{WS_PORT}/{operation}"
+        addr = f"ws://{settings.WS_ADDRESS}:{settings.WS_PORT}/{operation}"
         async with websockets.connect(addr) as websocket:
             await websocket.send(json.dumps(payload))
-            _logger.info(f"Message sent: {payload}")
+            log.info("message_sent", payload=payload)
             response = await websocket.recv()
-            _logger.info(f"Message received: {response}")
+            log.info("message_received", response=response)
 
             return json.loads(response)
-    except (asyncio.TimeoutError) as err:
-        _logger.error(
-            f"Asyncio Timeout Error while trying to communicate with the database. Traceback: {err}")
-    except (ConnectionRefusedError) as err:
-        _logger.error(
-            f"The connection with the websocket (Address: {addr}) was refused. Traceback: {err}")
+    except asyncio.TimeoutError as err:
+        log.error("timeout_error", error=str(err))
+    except ConnectionRefusedError as err:
+        log.error("connection_refused", address=addr, error=str(err))
     except ConnectionClosed as err:
-        _logger.error(err)
+        log.error("connection_closed", error=str(err))
     except RuntimeError as err:
-        _logger.error(err)
+        log.error("runtime_error", error=str(err))
     except Exception as err:
-        _logger.error(err)
+        log.error("unexpected_error", error=str(err))
 
 
 async def run(operation: str, data: dict):
@@ -48,9 +38,9 @@ async def run(operation: str, data: dict):
             "id": str(uuid4()),
             "time": datetime.now().isoformat("T") + "Z",
             "type": TYPE,
-            "payload": data
+            "payload": data,
         }
         response = await communicate(operation, payload)
         return response
     except Exception as err:
-        _logger.error(err)
+        log.error("run_error", error=str(err))
