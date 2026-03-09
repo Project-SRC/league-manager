@@ -5,7 +5,7 @@ from uuid import UUID
 
 
 class Driver(User):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     deleted_at: Optional[datetime] = None
@@ -16,6 +16,6 @@ class Driver(User):
     total_races: int = 0
     championships_won: int = 0
     birth_date: date
-    birth_place: Optional[str]  # TODO: Update to use Geolocation
+    birth_place: Optional[str] = None  # TODO: Update to use Geolocation
     number: str
     active: bool = None

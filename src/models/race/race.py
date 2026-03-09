@@ -6,14 +6,14 @@ from uuid import UUID
 
 class Race(BaseModel):
     # TODO: Finalize class
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     deleted_at: Optional[datetime] = None
     date: date
     track: UUID
-    number_laps: Optional[int]
-    race_time: Optional[str]
+    number_laps: Optional[int] = None
+    race_time: Optional[str] = None
     driver_max: int  # Max number of drivers in the Race
 
 

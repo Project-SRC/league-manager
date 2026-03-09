@@ -7,7 +7,7 @@ from uuid import UUID
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user_id: Optional[UUID]
+    user_id: Optional[UUID] = None
 
 
 class TokenData(BaseModel):
@@ -15,11 +15,11 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     username: str
     password: str
     name: str
-    nickname: Optional[str]
+    nickname: Optional[str] = None
     email: str
     profile_picture: Optional[HttpUrl] = None
     created_at: datetime = datetime.now()

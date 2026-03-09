@@ -5,12 +5,12 @@ from uuid import UUID
 
 
 class Team(BaseModel):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     name: str
-    base: Optional[str]  # TODO: Update to use Geolocation
+    base: Optional[str] = None  # TODO: Update to use Geolocation
     founded: date
     team_chief: UUID
-    logo: Optional[HttpUrl]
+    logo: Optional[HttpUrl] = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     deleted_at: Optional[datetime] = None

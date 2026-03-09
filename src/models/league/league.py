@@ -11,7 +11,7 @@ Prize = List[Dict[int, str]]
 
 
 class League(BaseModel):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     name: str
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()

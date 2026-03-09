@@ -23,19 +23,19 @@ class TrackDirection(str, Enum):
 
 # REF: Create Enum for track type -> https://pydantic-docs.helpmanual.io/usage/types/#enums-and-choices
 class Track(BaseModel):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     name: str
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     deleted_at: Optional[datetime] = None
     founded: date
     type: TrackTypeEnum  # [Circuit, Rally, City Circuit, ...]
-    localtion: Optional[str]  # TODO: Update to use Geolocation
+    localtion: Optional[str] = None  # TODO: Update to use Geolocation
     country: UUID
     direction: TrackDirection
     length: float  # Length in Km -> Convert to Miles if needed
     number_curves: int
-    map: Optional[HttpUrl]
+    map: Optional[HttpUrl] = None
     record: Optional[str] = Field(
-        None, regex=VALID_TIME_REGEX, description="Expected time format: HH:MM:SSS.mmm"
+        None, pattern=VALID_TIME_REGEX, description="Expected time format: HH:MM:SSS.mmm"
     )

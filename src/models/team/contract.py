@@ -5,7 +5,7 @@ from uuid import UUID
 
 
 class Contract(BaseModel):
-    id: Optional[UUID]
+    id: Optional[UUID] = None
     created_at: datetime = datetime.now()
     terminated_at: Optional[datetime] = None
     team: UUID
