@@ -1,13 +1,13 @@
 from datetime import datetime
-from pydantic import BaseModel, HttpUrl
-from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel, HttpUrl
 
 
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user_id: Optional[UUID] = None
+    user_id: UUID | None = None
 
 
 class TokenData(BaseModel):
@@ -15,20 +15,20 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
-    id: Optional[UUID] = None
+    id: UUID | None = None
     username: str
     password: str
     name: str
-    nickname: Optional[str] = None
+    nickname: str | None = None
     email: str
-    profile_picture: Optional[HttpUrl] = None
+    profile_picture: HttpUrl | None = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
-    deleted_at: Optional[datetime] = None
+    deleted_at: datetime | None = None
     is_manager: bool = None
     is_driver: bool = None
     is_steward: bool = None
     is_admin: bool = None
-    manager_id: Optional[UUID] = None
-    driver_id: Optional[UUID] = None
-    steward_id: Optional[UUID] = None
+    manager_id: UUID | None = None
+    driver_id: UUID | None = None
+    steward_id: UUID | None = None

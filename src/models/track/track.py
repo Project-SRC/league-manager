@@ -1,8 +1,8 @@
 from datetime import date, datetime
 from enum import Enum
-from pydantic import BaseModel, HttpUrl, Field
-from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel, Field, HttpUrl
 
 # CONSTANTS
 VALID_TIME_REGEX = "([0-9]+)?(\\:)?([0-9]{2})?(\\:)?([0-9]{2})\\.([0-9]{3})"
@@ -23,19 +23,19 @@ class TrackDirection(str, Enum):
 
 # REF: Create Enum for track type -> https://pydantic-docs.helpmanual.io/usage/types/#enums-and-choices
 class Track(BaseModel):
-    id: Optional[UUID] = None
+    id: UUID | None = None
     name: str
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
-    deleted_at: Optional[datetime] = None
+    deleted_at: datetime | None = None
     founded: date
     type: TrackTypeEnum  # [Circuit, Rally, City Circuit, ...]
-    localtion: Optional[str] = None  # TODO: Update to use Geolocation
+    localtion: str | None = None  # TODO: Update to use Geolocation
     country: UUID
     direction: TrackDirection
     length: float  # Length in Km -> Convert to Miles if needed
     number_curves: int
-    map: Optional[HttpUrl] = None
-    record: Optional[str] = Field(
+    map: HttpUrl | None = None
+    record: str | None = Field(
         None, pattern=VALID_TIME_REGEX, description="Expected time format: HH:MM:SSS.mmm"
     )

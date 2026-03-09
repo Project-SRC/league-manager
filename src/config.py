@@ -1,11 +1,10 @@
+import logging
 import os
 import sys
-import logging
 from functools import lru_cache
 from typing import Any
 
 import structlog
-from structlog.stdlib import LoggerFactory
 from dotenv import load_dotenv
 
 

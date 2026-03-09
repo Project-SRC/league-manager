@@ -1,12 +1,12 @@
 from datetime import datetime
-from pydantic import BaseModel
-from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class Contract(BaseModel):
-    id: Optional[UUID] = None
+    id: UUID | None = None
     created_at: datetime = datetime.now()
-    terminated_at: Optional[datetime] = None
+    terminated_at: datetime | None = None
     team: UUID
     driver: UUID

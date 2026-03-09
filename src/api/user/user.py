@@ -1,16 +1,17 @@
 from datetime import datetime, timedelta
+
+import jwt
+import ujson as json
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from src.utils.utils import get_object_by_id
 from jwt import PyJWTError
 from pwdlib import PasswordHash
 from pwdlib.hashers.bcrypt import BcryptHasher
-from src.db.db import run
-from src.models.user.user import User, Token, TokenData
-from src.service.service import get_variable
-import jwt
-import ujson as json
 
+from src.db.legacy import run
+from src.models.user.user import Token, TokenData, User
+from src.service.service import get_variable
+from src.utils.utils import get_object_by_id
 
 # Router for the API
 ROUTER = APIRouter()

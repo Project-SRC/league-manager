@@ -1,12 +1,14 @@
-import ujson as json
 from datetime import datetime
+
+import ujson as json
 from fastapi import APIRouter, Depends, HTTPException
-from src.utils.utils import verify_id, verify_exists_by_id
+
+from src.api.user.user import get_current_active_user
+from src.db.legacy import run
 from src.models.race.race import Race
 from src.models.user.user import User
-from src.api.user.user import get_current_active_user
-from src.db.db import run
 from src.service.service import get_variable
+from src.utils.utils import verify_exists_by_id, verify_id
 
 # GET - Read
 # POST - Create
@@ -93,7 +95,7 @@ async def create_race(
             return Race.parse_obj(data)
     else:
         raise HTTPException(
-            status_code=403, detail=f"Object already exists on database."
+            status_code=403, detail="Object already exists on database."
         )
 
 
@@ -123,7 +125,7 @@ async def update_race(
                 database_obj.get("response_message").get("changes")[0].get("new_val")
             )
     else:
-        raise HTTPException(status_code=403, detail=f"Object not found on database.")
+        raise HTTPException(status_code=403, detail="Object not found on database.")
 
 
 @ROUTER.delete("/{identifier}")

@@ -1,12 +1,14 @@
-import ujson as json
 from datetime import datetime
+
+import ujson as json
 from fastapi import APIRouter, Depends, HTTPException
-from src.utils.utils import verify_exists_by_id, get_object_by_id
+
+from src.api.user.user import get_current_active_user
+from src.db.legacy import run
 from src.models.user.steward import Steward
 from src.models.user.user import User
-from src.api.user.user import get_current_active_user
-from src.db.db import run
 from src.service.service import get_variable
+from src.utils.utils import get_object_by_id, verify_exists_by_id
 
 # GET - Read
 # POST - Create
@@ -66,7 +68,7 @@ async def update_user(user_id: str, steward_id: str, remove: bool):
             return True
     else:
         raise HTTPException(
-            status_code=403, detail=f"User or Steward doesn't exist in the database."
+            status_code=403, detail="User or Steward doesn't exist in the database."
         )
 
 
@@ -140,7 +142,7 @@ async def create_steward(
             await update_user(user_id=user, steward_id=data.get("id"), remove=False)
             return Steward.parse_obj(data)
     else:
-        raise HTTPException(status_code=403, detail=f"Steward already registered.")
+        raise HTTPException(status_code=403, detail="Steward already registered.")
 
 
 @ROUTER.patch("/{user}/steward/{identifier}", response_model=Steward)

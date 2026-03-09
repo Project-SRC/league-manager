@@ -1,1 +1,1 @@
-from . import participation, race
+from . import race

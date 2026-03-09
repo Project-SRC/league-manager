@@ -1,12 +1,12 @@
 from datetime import datetime
-from src.models.user.user import User
-from typing import Optional
 from uuid import UUID
+
+from src.models.user.user import User
 
 
 class Steward(User):
-    id: Optional[UUID] = None
+    id: UUID | None = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
-    deactivated_at: Optional[datetime] = None
+    deactivated_at: datetime | None = None
     active: bool = None

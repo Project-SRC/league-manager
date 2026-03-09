@@ -1,17 +1,18 @@
+import uvicorn
 from fastapi import FastAPI
-from src.api.team.contract import ROUTER as CONTRACT
+
 from src.api.country.country import ROUTER as COUNTRY
-from src.api.user.driver import ROUTER as DRIVER
 from src.api.league.league import ROUTER as LEAGUE
-from src.api.user.manager import ROUTER as MANAGER
 from src.api.race.participation import ROUTER as PARTICIPATION
 from src.api.race.race import ROUTER as RACE
-from src.api.user.steward import ROUTER as STEWARD
+from src.api.team.contract import ROUTER as CONTRACT
 from src.api.team.team import ROUTER as TEAM
 from src.api.track.track import ROUTER as TRACK
+from src.api.user.driver import ROUTER as DRIVER
+from src.api.user.manager import ROUTER as MANAGER
+from src.api.user.steward import ROUTER as STEWARD
 from src.api.user.user import ROUTER as USER
 from src.service.service import get_variable
-import uvicorn
 
 MOCK = get_variable("MOCK", bool) or False
 TEST = get_variable("TEST", bool) or False

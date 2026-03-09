@@ -1,19 +1,19 @@
 from datetime import date, datetime
-from pydantic import BaseModel, HttpUrl
-from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel, HttpUrl
 
 
 class Team(BaseModel):
-    id: Optional[UUID] = None
+    id: UUID | None = None
     name: str
-    base: Optional[str] = None  # TODO: Update to use Geolocation
+    base: str | None = None  # TODO: Update to use Geolocation
     founded: date
     team_chief: UUID
-    logo: Optional[HttpUrl] = None
+    logo: HttpUrl | None = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
-    deleted_at: Optional[datetime] = None
+    deleted_at: datetime | None = None
     total_points: int = 0
     total_races: int = 0
     championships_won: int = 0

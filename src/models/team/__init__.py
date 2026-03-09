@@ -1,1 +1,1 @@
-from . import contract, team
+from . import team

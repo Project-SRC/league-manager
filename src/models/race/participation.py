@@ -1,13 +1,13 @@
 from datetime import datetime
-from pydantic import BaseModel
-from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class Participation(BaseModel):
-    id: Optional[UUID] = None
+    id: UUID | None = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
-    deleted_at: Optional[datetime] = None
+    deleted_at: datetime | None = None
     race: UUID
     driver: UUID
