@@ -571,3 +571,6 @@ MigrationBackup/
 
 # Visual Studo Code config files
 .vscode/
+
+# Open Code Context & Memory files
+.opencode
