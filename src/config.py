@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from functools import lru_cache
 from typing import Any
@@ -7,11 +8,11 @@ import structlog
 from structlog.stdlib import LoggerFactory
 from dotenv import load_dotenv
 
-load_dotenv()
-
 
 class Settings:
     def __init__(self) -> None:
+        # Delay reading environment to initialization
+        load_dotenv()
         self.MOCK: bool = os.getenv("MOCK", "false").lower() == "true"
         self.TEST: bool = os.getenv("TEST", "false").lower() == "true"
         self.VERSION: str = os.getenv("VERSION", "0.0.1-alpha")
@@ -32,24 +33,40 @@ class Settings:
 
 
 def setup_logging() -> None:
-    logging.basicConfig(
-        format="%(message)s",
-        level=logging.INFO,
-    )
+    """Configures logging using structlog for structured, context-aware logging."""
+    shared_processors: list[Any] = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.filter_by_level,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+    ]
 
     structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.processors.add_log_level,
-            structlog.processors.StackInfoRenderer(),
-            structlog.dev.set_exc_info,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer(),
+        processors=shared_processors
+        + [
+            structlog.stdlib.render_to_log_kwargs,
         ],
-        context_class=dict,
-        logger_factory=LoggerFactory(),
-        cache_logger_on_first_use=False,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
     )
+
+    formatter = structlog.stdlib.ProcessorFormatter(
+        foreign_pre_chain=shared_processors,
+        processor=structlog.processors.JSONRenderer(),
+    )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
 
 
 @lru_cache
