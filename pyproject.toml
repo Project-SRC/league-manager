@@ -54,6 +54,9 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "B008",  # FastAPI Depends() in function defaults is fine
+    "B904",  # except raise is fine for auth errors
+    "F401",  # unused imports in __init__.py are ok
 ]
 
 [tool.ruff.lint.isort]
