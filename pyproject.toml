@@ -1,0 +1,60 @@
+[project]
+name = "league-manager"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.135.1",
+    "uvicorn==0.41.0",
+    "ujson==5.11.0",
+    "pydantic==2.12.5",
+    "python-multipart==0.0.22",
+    "pyjwt==2.11.0",
+    "bcrypt==5.0.0",
+    "email-validator==2.3.0",
+    "starlette==0.52.1",
+    "rethinkdb==2.4.10.post1",
+    "python-dotenv>=1.2.2",
+    "websockets>=12.0,<16.0",
+    "pwdlib>=0.3.0",
+    "httpx>=0.26.0,<0.28.0",
+    "structlog>=24.0.0",
+    "supabase>=2.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipdb==0.13.13",
+    "ruff>=0.8.0",
+    "pytest==9.0.2",
+    "requests==2.32.5",
+    "pytest-cov==7.0.0",
+]
+
+[tool.uv]
+package = false
+default-groups = "all"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
