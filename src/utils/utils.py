@@ -1,4 +1,4 @@
-from pydantic.main import ModelMetaclass
+from pydantic import BaseModel
 from src.db.db import run
 from typing import NewType
 from uuid import UUID
@@ -6,7 +6,7 @@ import re
 
 VALID_TIME_REGEX = "([0-9]+)?(\\:)?([0-9]{2})?(\\:)?([0-9]{2})\\.([0-9]{3})"
 
-CustomClass = NewType("CustomClass", ModelMetaclass)
+CustomClass = NewType("CustomClass", BaseModel)
 
 
 def verify_id(obj):
