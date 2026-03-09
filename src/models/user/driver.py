@@ -18,4 +18,4 @@ class Driver(User):
     birth_date: date
     birth_place: str | None = None  # TODO: Update to use Geolocation
     number: str
-    active: bool = None
+    active: bool = True

@@ -9,4 +9,4 @@ class Steward(User):
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     deactivated_at: datetime | None = None
-    active: bool = None
+    active: bool = True

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, HttpUrl
 VALID_TIME_REGEX = "([0-9]+)?(\\:)?([0-9]{2})?(\\:)?([0-9]{2})\\.([0-9]{3})"
 
 
-class TrackTypeEnum(str, Enum):
+class TrackTypeEnum(StrEnum):
     circuit = "Circuit"
     rally = "Rally"
     city_circuit = "City Circuit"
@@ -16,7 +16,7 @@ class TrackTypeEnum(str, Enum):
     off_road = "Off Road"
 
 
-class TrackDirection(str, Enum):
+class TrackDirection(StrEnum):
     normal = "Normal"
     reversed = "Reversed"
 
@@ -30,7 +30,7 @@ class Track(BaseModel):
     deleted_at: datetime | None = None
     founded: date
     type: TrackTypeEnum  # [Circuit, Rally, City Circuit, ...]
-    localtion: str | None = None  # TODO: Update to use Geolocation
+    location: str | None = None  # TODO: Update to use Geolocation
     country: UUID
     direction: TrackDirection
     length: float  # Length in Km -> Convert to Miles if needed

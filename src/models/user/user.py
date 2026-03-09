@@ -11,7 +11,7 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: str = None
+    username: str = str()
 
 
 class User(BaseModel):
@@ -25,10 +25,10 @@ class User(BaseModel):
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     deleted_at: datetime | None = None
-    is_manager: bool = None
-    is_driver: bool = None
-    is_steward: bool = None
-    is_admin: bool = None
+    is_manager: bool = False
+    is_driver: bool = False
+    is_steward: bool = False
+    is_admin: bool = False
     manager_id: UUID | None = None
     driver_id: UUID | None = None
     steward_id: UUID | None = None

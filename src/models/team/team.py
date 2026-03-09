@@ -7,7 +7,7 @@ from pydantic import BaseModel, HttpUrl
 class Team(BaseModel):
     id: UUID | None = None
     name: str
-    base: str | None = None  # TODO: Update to use Geolocation
+    location: str | None = None  # TODO: Update to use Geolocation
     founded: date
     team_chief: UUID
     logo: HttpUrl | None = None
