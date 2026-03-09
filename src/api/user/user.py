@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from src.utils.utils import get_object_by_id
 from jwt import PyJWTError
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
 from src.db.db import run
 from src.models.user.user import User, Token, TokenData
 from src.service.service import get_variable
@@ -24,7 +25,7 @@ DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
 TABLE = "user"
 NOW = str(datetime.now())
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = PasswordHash([BcryptHasher()])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/token")
 
 
@@ -133,7 +134,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 
 @ROUTER.get("/me")
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+async def read_user_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
