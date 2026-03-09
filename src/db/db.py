@@ -1,46 +1,45 @@
-import asyncio
-import websockets
-import ujson as json
-from datetime import datetime
-from uuid import uuid4
-from websockets import ConnectionClosed
-from src.config import settings, log
+from typing import Any
 
-TYPE = "rethink-manager-call"
+from src.models.internal.database import QueryResult
 
 
-async def communicate(operation: str, payload: dict, **kwargs):
-    addr: str = ""
-    try:
-        addr = f"ws://{settings.WS_ADDRESS}:{settings.WS_PORT}/{operation}"
-        async with websockets.connect(addr) as websocket:
-            await websocket.send(json.dumps(payload))
-            log.info("message_sent", payload=payload)
-            response = await websocket.recv()
-            log.info("message_received", response=response)
+class DBConnector:
+    """Interface for database operations.
 
-            return json.loads(response)
-    except asyncio.TimeoutError as err:
-        log.error("timeout_error", error=str(err))
-    except ConnectionRefusedError as err:
-        log.error("connection_refused", address=addr, error=str(err))
-    except ConnectionClosed as err:
-        log.error("connection_closed", error=str(err))
-    except RuntimeError as err:
-        log.error("runtime_error", error=str(err))
-    except Exception as err:
-        log.error("unexpected_error", error=str(err))
+    Implementations should provide:
+    - table(name): returns a table reference
+    - select(columns): returns records
+    - insert(data): inserts record(s)
+    - update(data): updates record(s)
+    - delete(): deletes record(s)
+    """
+
+    def table(self, name: str):
+        raise NotImplementedError
+
+    async def execute(self, operation: str, payload: dict[str, Any]) -> QueryResult:
+        raise NotImplementedError
 
 
-async def run(operation: str, data: dict):
-    try:
-        payload = {
-            "id": str(uuid4()),
-            "time": datetime.now().isoformat("T") + "Z",
-            "type": TYPE,
-            "payload": data,
-        }
-        response = await communicate(operation, payload)
-        return response
-    except Exception as err:
-        log.error("run_error", error=str(err))
+_connector: DBConnector | None = None
+
+
+def get_connector(legacy: bool = False) -> DBConnector:
+    """Get the database connector implementation.
+
+    Args:
+        legacy: If True, use the legacy RethinkDB connector via websocket.
+                If False (default), use Supabase.
+    """
+    global _connector
+
+    if legacy:
+        from src.db.legacy import LegacyConnector
+
+        return LegacyConnector()
+
+    if _connector is None:
+        from src.db.supabase import SupabaseConnector
+
+        _connector = SupabaseConnector()
+    return _connector
