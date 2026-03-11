@@ -14,10 +14,20 @@ class Settings:
         load_dotenv()
         self.MOCK: bool = os.getenv("MOCK", "false").lower() == "true"
         self.TEST: bool = os.getenv("TEST", "false").lower() == "true"
+        self.LEGACY: bool = os.getenv("LEGACY", "false").lower() == "true"
         self.VERSION: str = os.getenv("VERSION", "0.0.1-alpha")
 
         self.SUPABASE_URL: str = os.getenv("SUPABASE_URL", "http://127.0.0.1:54321")
         self.SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+        self.SUPABASE_HOST: str = os.getenv("SUPABASE_HOST", "127.0.0.1")
+        self.SUPABASE_PORT: int = int(os.getenv("SUPABASE_PORT", "54323"))
+
+        self.DATABASE_URL: str = os.getenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable",
+        )
+
+        self.DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
         self.SECRET_KEY: str = os.getenv("SECRET_KEY", "")
         self.ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
