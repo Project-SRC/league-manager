@@ -11,7 +11,7 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: str = str()
+    username: str = ""
 
 
 class User(BaseModel):

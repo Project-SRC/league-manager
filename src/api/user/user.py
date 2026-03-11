@@ -8,7 +8,7 @@ from jwt import PyJWTError
 from pwdlib import PasswordHash
 from pwdlib.hashers.bcrypt import BcryptHasher
 
-from src.db.legacy import run
+from src.db.supabase import execute as run
 from src.models.user.user import Token, TokenData, User
 from src.service.service import get_variable
 from src.utils.utils import get_object_by_id
@@ -16,7 +16,7 @@ from src.utils.utils import get_object_by_id
 # Router for the API
 ROUTER = APIRouter()
 
-# Enviroment reader
+# Environment reader
 SECRET_KEY = get_variable("SECRET_KEY")
 ALGORITHM = get_variable("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = get_variable("ACCESS_TOKEN_EXPIRE_MINUTES", int) or 30
