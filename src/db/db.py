@@ -1,5 +1,6 @@
 from typing import Any
 
+from src.config import settings
 from src.models.internal.database import QueryResult
 
 
@@ -24,16 +25,15 @@ class DBConnector:
 _connector: DBConnector | None = None
 
 
-def get_connector(legacy: bool = False) -> DBConnector:
-    """Get the database connector implementation.
+def get_connector() -> DBConnector:
+    """Get the database connector implementation based on LEGACY setting.
 
-    Args:
-        legacy: If True, use the legacy RethinkDB connector via websocket.
-                If False (default), use Supabase.
+    If LEGACY=true, use the legacy RethinkDB connector via websocket.
+    If LEGACY=false (default), use Supabase.
     """
     global _connector
 
-    if legacy:
+    if settings.LEGACY:
         from src.db.legacy import LegacyConnector
 
         return LegacyConnector()
