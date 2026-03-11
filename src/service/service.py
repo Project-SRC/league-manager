@@ -1,4 +1,6 @@
 import os
+from collections.abc import Callable
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -17,12 +19,15 @@ VARIABLES = [
 ]
 
 
-def get_variable(name: str | None = None, function=lambda x: str(x) if x is not None else None):
+def get_variable(
+    name: str | None = None,
+    func: Callable[[Any], Any] | None = None,
+) -> Any:
     load_dotenv()
 
     if name not in VARIABLES:
         return None
-    if name:
-        return function(os.environ.get(name))
+    if name and func:
+        return func(os.environ.get(name))
     else:
         return {var: os.environ.get(var) for var in VARIABLES}
