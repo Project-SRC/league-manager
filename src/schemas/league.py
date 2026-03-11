@@ -58,7 +58,7 @@ class Race(Base, UUIDMixin, TimestampMixin):
     driver_max: Mapped[int] = mapped_column(Integer, nullable=True, default=20)
 
     track: Mapped[Track | None] = relationship("Track", back_populates="races")
-    participation: Mapped[list["Participation"]] = relationship(
+    participation: Mapped[list[Participation]] = relationship(
         "Participation", back_populates="race"
     )
 

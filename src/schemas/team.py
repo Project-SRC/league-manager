@@ -27,7 +27,7 @@ class Team(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     drivers: Mapped[list[Driver]] = relationship(
         "Driver", back_populates="team", foreign_keys="Driver.current_team"
     )
-    contracts: Mapped[list["Contract"]] = relationship(
+    contracts: Mapped[list[Contract]] = relationship(
         "Contract", back_populates="team"
     )
     league_teams: Mapped[list[LeagueTeam]] = relationship(
