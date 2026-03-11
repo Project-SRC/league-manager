@@ -7,6 +7,7 @@ from src.api.user.user import get_current_active_user
 from src.db.legacy import run
 from src.models.team.contract import Contract
 from src.models.user.user import User
+from src.schemas.pydantic import CreateContract
 from src.service.service import get_variable
 from src.utils.utils import verify_exists_by_id, verify_id
 
@@ -59,33 +60,30 @@ async def get_contract(
         database_obj.get("status_code") == 200
         and Contract.parse_obj(database_obj.get("response_message")).deleted_at is not None
     ):
-        raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} is deleted."
-        )
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
     else:
         return Contract.parse_obj(database_obj.get("response_message"))
 
 
 @ROUTER.post("/{team}/contract/", response_model=Contract)
 async def create_contract(
-    contract: Contract, team: str, current_user: User = Depends(get_current_active_user)
+    contract: CreateContract, team: str, current_user: User = Depends(get_current_active_user)
 ):
     team_exist = await verify_exists_by_id(team, DATABASE, TEAM_TABLE)
     if not team_exist:
-        raise HTTPException(
-            status_code=404, detail=f"The Team with ID {team} doesn't exist"
-        )
+        raise HTTPException(status_code=404, detail=f"The Team with ID {team} doesn't exist")
 
+    contract_dict = contract.model_dump()
     driver_exist = await verify_exists_by_id(
-        str(contract.driver), DATABASE, DRIVER_TABLE
+        str(contract_dict.get("driver_id")), DATABASE, DRIVER_TABLE
     )
     if not driver_exist:
         raise HTTPException(
             status_code=404,
-            detail=f"The Driver with ID {contract.driver} doesn't exist",
+            detail=f"The Driver with ID {contract_dict.get('driver_id')} doesn't exist",
         )
 
-    exists = await verify_exists(contract)
+    exists = await verify_exists(contract_dict)
     if not exists:
         operation = "insert"
         data = json.loads(contract.json())
@@ -104,18 +102,10 @@ async def create_contract(
             )
         else:
             if not fixed_id:
-                data.update(
-                    {
-                        "id": database_obj.get("response_message").get(
-                            "generated_keys"
-                        )[0]
-                    }
-                )
+                data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
             return Contract.parse_obj(data)
     else:
-        raise HTTPException(
-            status_code=403, detail="Driver already have a contract running."
-        )
+        raise HTTPException(status_code=403, detail="Driver already have a contract running.")
 
 
 @ROUTER.patch("/{team}/contract/{identifier}", response_model=Contract)

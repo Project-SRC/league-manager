@@ -7,6 +7,11 @@ from src.api.user.user import get_current_active_user
 from src.db.legacy import run
 from src.models.country.country import Country
 from src.models.user.user import User
+from src.schemas.pydantic.country import (
+    CountryResponse,
+    CreateCountry,
+    UpdateCountry,
+)
 from src.service.service import get_variable
 from src.utils.utils import verify_exists_by_id, verify_id
 
@@ -39,9 +44,7 @@ async def verify_exists(country: Country):
 
 
 @ROUTER.get("/{identifier}", response_model=Country)
-async def get_country(
-    identifier: str, current_user: User = Depends(get_current_active_user)
-):
+async def get_country(identifier: str, current_user: User = Depends(get_current_active_user)):
     operation = "get"
     payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
     database_obj = await run(operation, payload)
@@ -54,64 +57,51 @@ async def get_country(
         database_obj.get("status_code") == 200
         and Country.parse_obj(database_obj.get("response_message")).deleted_at is not None
     ):
-        raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} is deleted."
-        )
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
     else:
         return Country.parse_obj(database_obj.get("response_message"))
 
 
-@ROUTER.post("/", response_model=Country)
+@ROUTER.post("/", response_model=CountryResponse)
 async def create_country(
-    country: Country, current_user: User = Depends(get_current_active_user)
+    country: CreateCountry, current_user: User = Depends(get_current_active_user)
 ):
-    exists = await verify_exists(country)
-    if not exists:
-        operation = "insert"
-        data = json.loads(country.json())
-        fixed_id = verify_id(country)
-        if fixed_id:
-            database_obj = await run(operation, data)
-        else:
-            data.pop("id")
-
-        payload = {"database": DATABASE, "table": TABLE, "data": data}
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            if not fixed_id:
-                data.update(
-                    {
-                        "id": database_obj.get("response_message").get(
-                            "generated_keys"
-                        )[0]
-                    }
-                )
-            return Country.parse_obj(data)
+    operation = "insert"
+    data = country.model_dump()
+    fixed_id = False
+    if data.get("id"):
+        fixed_id = True
     else:
+        data.pop("id", None)
+
+    payload = {"database": DATABASE, "table": TABLE, "data": data}
+    database_obj = await run(operation, payload)
+    if database_obj.get("status_code") != 200:
         raise HTTPException(
-            status_code=403, detail="Object already exists on database."
+            status_code=500,
+            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
         )
+    else:
+        if not fixed_id:
+            data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
+        return CountryResponse(**data)
 
 
-@ROUTER.patch("/{identifier}", response_model=Country)
+@ROUTER.patch("/{identifier}", response_model=CountryResponse)
 async def update_country(
-    body: dict, identifier: str, current_user: User = Depends(get_current_active_user)
+    body: UpdateCountry, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
     exist = await verify_exists_by_id(identifier, DATABASE, TABLE)
     if exist:
         operation = "update"
         now = str(datetime.now())
-        body.update({"updated_at": now})
+        update_data = body.model_dump(exclude_unset=True)
+        update_data.update({"updated_at": now})
         payload = {
             "database": DATABASE,
             "table": TABLE,
             "identifier": identifier,
-            "data": body,
+            "data": update_data,
         }
         database_obj = await run(operation, payload)
         if database_obj.get("status_code") != 200:
@@ -120,17 +110,15 @@ async def update_country(
                 detail=f"Database couldn't update the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
             )
         else:
-            return Country.parse_obj(
-                database_obj.get("response_message").get("changes")[0].get("new_val")
+            return CountryResponse(
+                **database_obj.get("response_message").get("changes")[0].get("new_val")
             )
     else:
         raise HTTPException(status_code=403, detail="Object not found on database.")
 
 
 @ROUTER.delete("/{identifier}")
-async def remove_country(
-    identifier: str, current_user: User = Depends(get_current_active_user)
-):
+async def remove_country(identifier: str, current_user: User = Depends(get_current_active_user)):
     operation = "update"
     now = str(datetime.now())
     data = {}

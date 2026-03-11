@@ -7,6 +7,11 @@ from src.api.user.user import get_current_active_user
 from src.db.legacy import run
 from src.models.race.race import Race
 from src.models.user.user import User
+from src.schemas.pydantic.race import (
+    CreateRace,
+    RaceResponse,
+    UpdateRace,
+)
 from src.service.service import get_variable
 from src.utils.utils import verify_exists_by_id, verify_id
 
@@ -40,9 +45,7 @@ async def verify_exists(race: Race):
 
 
 @ROUTER.get("/{identifier}", response_model=Race)
-async def get_race(
-    identifier: str, current_user: User = Depends(get_current_active_user)
-):
+async def get_race(identifier: str, current_user: User = Depends(get_current_active_user)):
     operation = "get"
     payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
     database_obj = await run(operation, payload)
@@ -55,64 +58,53 @@ async def get_race(
         database_obj.get("status_code") == 200
         and Race.parse_obj(database_obj.get("response_message")).deleted_at is not None
     ):
-        raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} is deleted."
-        )
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
     else:
         return Race.parse_obj(database_obj.get("response_message"))
 
 
-@ROUTER.post("/", response_model=Race)
-async def create_race(
-    race: Race, current_user: User = Depends(get_current_active_user)
-):
-    exists = await verify_exists(race)
-    if not exists:
-        operation = "insert"
-        data = json.loads(race.json())
-        fixed_id = verify_id(race)
-        if fixed_id:
-            database_obj = await run(operation, data)
-        else:
-            data.pop("id")
-
-        payload = {"database": DATABASE, "table": TABLE, "data": data}
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            if not fixed_id:
-                data.update(
-                    {
-                        "id": database_obj.get("response_message").get(
-                            "generated_keys"
-                        )[0]
-                    }
-                )
-            return Race.parse_obj(data)
+@ROUTER.post("/", response_model=RaceResponse)
+async def create_race(race: CreateRace, current_user: User = Depends(get_current_active_user)):
+    exists = await verify_exists_by_id(race.track_id, DATABASE, "track") if race.track_id else False
+    if not exists and race.track_id:
+        raise HTTPException(status_code=404, detail="Track not found")
+    operation = "insert"
+    data = race.model_dump()
+    fixed_id = False
+    if data.get("id"):
+        fixed_id = True
+        database_obj = await run(operation, data)
     else:
+        data.pop("id", None)
+
+    payload = {"database": DATABASE, "table": TABLE, "data": data}
+    database_obj = await run(operation, payload)
+    if database_obj.get("status_code") != 200:
         raise HTTPException(
-            status_code=403, detail="Object already exists on database."
+            status_code=500,
+            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
         )
+    else:
+        if not fixed_id:
+            data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
+        return RaceResponse(**data)
 
 
-@ROUTER.patch("/{identifier}", response_model=Race)
+@ROUTER.patch("/{identifier}", response_model=RaceResponse)
 async def update_race(
-    body: dict, identifier: str, current_user: User = Depends(get_current_active_user)
+    body: UpdateRace, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
     exist = await verify_exists_by_id(identifier, DATABASE, TABLE)
     if exist:
         operation = "update"
         now = str(datetime.now())
-        body.update({"updated_at": now})
+        update_data = body.model_dump(exclude_unset=True)
+        update_data.update({"updated_at": now})
         payload = {
             "database": DATABASE,
             "table": TABLE,
             "identifier": identifier,
-            "data": body,
+            "data": update_data,
         }
         database_obj = await run(operation, payload)
         if database_obj.get("status_code") != 200:
@@ -121,17 +113,15 @@ async def update_race(
                 detail=f"Database couldn't update the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
             )
         else:
-            return Race.parse_obj(
-                database_obj.get("response_message").get("changes")[0].get("new_val")
+            return RaceResponse(
+                **database_obj.get("response_message").get("changes")[0].get("new_val")
             )
     else:
         raise HTTPException(status_code=403, detail="Object not found on database.")
 
 
 @ROUTER.delete("/{identifier}")
-async def remove_race(
-    identifier: str, current_user: User = Depends(get_current_active_user)
-):
+async def remove_race(identifier: str, current_user: User = Depends(get_current_active_user)):
     # Soft remove (no data is deleted)
     operation = "update"
     now = str(datetime.now())

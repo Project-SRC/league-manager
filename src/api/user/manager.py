@@ -7,6 +7,7 @@ from src.api.user.user import get_current_active_user
 from src.db.legacy import run
 from src.models.user.manager import Manager
 from src.models.user.user import User
+from src.schemas.pydantic import CreateManager
 from src.service.service import get_variable
 from src.utils.utils import get_object_by_id, verify_exists_by_id
 
@@ -90,31 +91,28 @@ async def get_manager(
         database_obj.get("status_code") == 200
         and Manager.parse_obj(manager).deactivated_at is not None
     ):
-        raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} is deleted."
-        )
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
     else:
         return Manager.parse_obj(manager)
 
 
 @ROUTER.post("/{user}/manager/", response_model=Manager)
 async def create_manager(
-    manager: dict, user: str, current_user: User = Depends(get_current_active_user)
+    manager: CreateManager, user: str, current_user: User = Depends(get_current_active_user)
 ):
     user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
     if not user_exist:
-        raise HTTPException(
-            status_code=404, detail=f"User with ID {user} doesn't exist"
-        )
+        raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
     user_vals = json.loads(user_exist.json())
     user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
-    exists = await verify_exists(manager)
+    manager_dict = manager.model_dump()
+    exists = await verify_exists(manager_dict)
     if not exists and not user_vals.get("is_manager", False):
         operation = "insert"
-        data = json.loads(Manager.parse_obj({**manager, **user_vals}).json())
+        data = json.loads(Manager.parse_obj({**manager_dict, **user_vals}).json())
         data = {key: value for key, value in data.items() if key not in MANAGER_MAP}
-        fixed_id = manager.get("id", False)
+        fixed_id = manager_dict.get("id", False)
         payload = {"database": DATABASE, "table": TABLE, "data": data}
         database_obj = await run(operation, payload)
         if database_obj.get("status_code") != 200:
@@ -124,13 +122,7 @@ async def create_manager(
             )
         else:
             if not fixed_id:
-                data.update(
-                    {
-                        "id": database_obj.get("response_message").get(
-                            "generated_keys"
-                        )[0]
-                    }
-                )
+                data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
 
             data.update(
                 {
@@ -154,9 +146,7 @@ async def update_manager(
 ):
     user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
     if not user_exist:
-        raise HTTPException(
-            status_code=404, detail=f"User with ID {user} doesn't exist"
-        )
+        raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
     user_vals = json.loads(user_exist.json())
     user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
@@ -177,17 +167,13 @@ async def update_manager(
                 detail=f"Database couldn't update the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
             )
         else:
-            manager = (
-                database_obj.get("response_message").get("changes")[0].get("new_val")
-            )
+            manager = database_obj.get("response_message").get("changes")[0].get("new_val")
             manager.update({"password": 64 * "*", "is_manager": True, "manager_id": identifier})
             return Manager.parse_obj(
                 database_obj.get("response_message").get("changes")[0].get("new_val")
             )
     else:
-        raise HTTPException(
-            status_code=403, detail=f"Manager with ID {identifier} doesn't exist."
-        )
+        raise HTTPException(status_code=403, detail=f"Manager with ID {identifier} doesn't exist.")
 
 
 @ROUTER.delete("/{user}/manager/{identifier}")
@@ -197,9 +183,7 @@ async def remove_manager(
     # Soft remove (no data is deleted)
     user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
     if not user_exist:
-        raise HTTPException(
-            status_code=404, detail=f"User with ID {user} doesn't exist"
-        )
+        raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
     exists = await get_object_by_id(identifier, DATABASE, TABLE, Manager)
     if not exists:
@@ -221,9 +205,7 @@ async def remove_manager(
             await update_user(user_id=user, manager_id=None, remove=True)
             return {"detail": f"{identifier} deleted"}
     else:
-        raise HTTPException(
-            status_code=403, detail=f"Manager with ID {identifier} doesn't exist."
-        )
+        raise HTTPException(status_code=403, detail=f"Manager with ID {identifier} doesn't exist.")
 
 
 @ROUTER.options("/manager")

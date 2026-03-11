@@ -7,6 +7,7 @@ from src.api.user.user import get_current_active_user
 from src.db.legacy import run
 from src.models.team.team import Team
 from src.models.user.user import User
+from src.schemas.pydantic import CreateTeam
 from src.service.service import get_variable
 from src.utils.utils import verify_exists_by_id, verify_id
 
@@ -39,9 +40,7 @@ async def verify_exists(team: Team):
 
 
 @ROUTER.get("/{identifier}", response_model=Team)
-async def get_team(
-    identifier: str, current_user: User = Depends(get_current_active_user)
-):
+async def get_team(identifier: str, current_user: User = Depends(get_current_active_user)):
     operation = "get"
     payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
     database_obj = await run(operation, payload)
@@ -54,20 +53,19 @@ async def get_team(
         database_obj.get("status_code") == 200
         and Team.parse_obj(database_obj.get("response_message")).deleted_at is not None
     ):
-        raise HTTPException(
-            status_code=409, detail=f"Object with ID {identifier} is deleted."
-        )
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
     else:
         return Team.parse_obj(database_obj.get("response_message"))
 
 
 @ROUTER.post("/", response_model=Team)
-async def create_team(team: Team, current_user: User = Depends(get_current_active_user)):
-    exists = await verify_exists(team)
+async def create_team(team: CreateTeam, current_user: User = Depends(get_current_active_user)):
+    team_dict = team.model_dump()
+    exists = await verify_exists(team_dict)
     if not exists:
         operation = "insert"
-        data = json.loads(team.json())
-        fixed_id = verify_id(team)
+        data = json.loads(team.model_dump_json())
+        fixed_id = verify_id(team_dict)
         if fixed_id:
             database_obj = await run(operation, data)
         else:
@@ -82,18 +80,10 @@ async def create_team(team: Team, current_user: User = Depends(get_current_activ
             )
         else:
             if not fixed_id:
-                data.update(
-                    {
-                        "id": database_obj.get("response_message").get(
-                            "generated_keys"
-                        )[0]
-                    }
-                )
+                data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
             return Team.parse_obj(data)
     else:
-        raise HTTPException(
-            status_code=403, detail="Object already exists on database."
-        )
+        raise HTTPException(status_code=403, detail="Object already exists on database.")
 
 
 @ROUTER.patch("/{identifier}", response_model=Team)
@@ -126,9 +116,7 @@ async def update_team(
 
 
 @ROUTER.delete("/{identifier}", response_model=Team)
-async def remove_team(
-    identifier: str, current_user: User = Depends(get_current_active_user)
-):
+async def remove_team(identifier: str, current_user: User = Depends(get_current_active_user)):
     operation = "update"
     now = str(datetime.now())
     data = {}

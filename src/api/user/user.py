@@ -1,17 +1,18 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID
 
 import jwt
 import ujson as json
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt import PyJWTError
-from pwdlib import PasswordHash
-from pwdlib.hashers.bcrypt import BcryptHasher
 
-from src.db.supabase import execute as run
+from src.db.db import get_connector
 from src.models.user.user import Token, TokenData, User
+from src.schemas.pydantic import CreateUser
+from src.security import verify_password
 from src.service.service import get_variable
-from src.utils.utils import get_object_by_id
 
 # Router for the API
 ROUTER = APIRouter()
@@ -24,27 +25,20 @@ DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
 
 # Global variables
 TABLE = "user"
-NOW = str(datetime.now())
-
-pwd_context = PasswordHash([BcryptHasher()])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/token")
 
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
 async def get_user(username: str):
-    operation = "filter"
-    data = {"username": username, "deleted_at": None}
-    payload = {"database": DATABASE, "table": TABLE, "filter": json.dumps(data)}
-    database_obj = await run(operation, payload)
-    if len(database_obj.get("response_message")) != 0:
-        return User.parse_obj(database_obj.get("response_message")[0])
+    connector = get_connector()
+    data: dict[str, Any] = {"username": username, "deleted_at": None}
+    result = await connector.execute("select", {"table": TABLE, "filters": data})
+    if result.error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {result.error}",
+        )
+    if result.data and len(result.data) != 0:
+        return User.model_validate(result.data[0])
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -53,22 +47,24 @@ async def get_user(username: str):
         )
 
 
-async def create_user(user: dict):
-    operation = "insert"
-    data = json.loads(User.parse_obj({**user}).json())
+async def create_user(user: dict[str, Any]):
+    connector = get_connector()
+    data = json.loads(User.model_validate({**user}).model_dump_json())
     data.pop("id")
-    payload = {"database": DATABASE, "table": TABLE, "data": data}
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    result = await connector.execute("insert", {"table": TABLE, "data": data})
+    if result.error:
         raise HTTPException(
             status_code=500,
-            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {result.error}",
         )
+    elif result.data:
+        data.update({"id": result.data[0].get("id")})
+        return User.model_validate(data)
     else:
-        data.update(
-            {"id": database_obj.get("response_message").get("generated_keys")[0]}
+        raise HTTPException(
+            status_code=500,
+            detail="Database couldn't create the object. No data returned.",
         )
-        return User.parse_obj(data)
 
 
 async def authenticate_user(username: str, password: str):
@@ -80,12 +76,14 @@ async def authenticate_user(username: str, password: str):
     return user
 
 
-def create_access_token(*, data: dict, expires_delta: timedelta = None):
+def create_access_token(
+    *, data: dict[str, Any], expires_delta: timedelta | None = None
+):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -99,14 +97,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
     except PyJWTError:
         raise credentials_exception
     user = await get_user(username=token_data.username)
-    if user is None:
+    if user:
         raise credentials_exception
     return user
 
@@ -119,7 +117,9 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 # Routes
 @ROUTER.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+) -> dict[str, UUID | str | None]:
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -140,8 +140,8 @@ async def read_user_me(current_user: User = Depends(get_current_active_user)):
 
 
 @ROUTER.post("/register")
-async def register_user(form_data: dict):
-    user = await create_user(form_data)
+async def register_user(form_data: CreateUser) -> dict[str, Any]:
+    user = await create_user(form_data.model_dump())
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
@@ -151,26 +151,30 @@ async def register_user(form_data: dict):
 
 @ROUTER.delete("/close/{identifier}")
 async def close_account(identifier: str):
-    # Soft remove (no data is deleted)
-    exists = await get_object_by_id(identifier, DATABASE, TABLE, User)
-    if exists:
-        operation = "update"
-        data = {"updated_at": NOW, "deleted_at": NOW}
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": data,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            return {"detail": f"{identifier} deleted"}
-    else:
+    connector = get_connector()
+    result = await connector.execute(
+        "select", {"table": TABLE, "filters": {"id": identifier}}
+    )
+    if result.error:
         raise HTTPException(
-            status_code=403, detail=f"Driver with ID {identifier} doesn't exist."
+            status_code=500,
+            detail=f"Database error: {result.error}",
         )
+    if not result.data:
+        raise HTTPException(
+            status_code=403, detail=f"User with ID {identifier} doesn't exist."
+        )
+
+    data = {
+        "updated_at": datetime.now(UTC).isoformat(),
+        "deleted_at": datetime.now(UTC).isoformat(),
+    }
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {result.error}",
+        )
+    return {"detail": f"{identifier} deleted"}
