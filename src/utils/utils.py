@@ -24,9 +24,9 @@ def verify_id(obj: HasId) -> bool:
 
 async def verify_exists_by_id(identifier: str, table: str):
     """Verify that a record exists by ID."""
-    conn = get_connector(legacy=True)
+    conn = get_connector()
     result: QueryResult = await conn.execute(
-        "get", {"table": table, "filters": {"id": identifier}}
+        "select", {"table": table, "filters": {"id": identifier}}
     )
 
     if result.error:
@@ -46,9 +46,9 @@ async def verify_exists_by_id(identifier: str, table: str):
 
 async def get_object_by_id(identifier: str, table: str, record_class: type[BaseModel]):
     """Get an object by ID from the database."""
-    conn = get_connector(legacy=True)
+    conn = get_connector()
     result: QueryResult | Any = await conn.execute(
-        "get", {"table": table, "filters": {"id": identifier}}
+        "select", {"table": table, "filters": {"id": identifier}}
     )
 
     if result.error:
