@@ -8,19 +8,23 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+from src.schemas import Base
+
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def get_url():
-    return os.getenv(
+    url = os.getenv(
         "DATABASE_URL",
-        f"postgresql+asyncpg://postgres:postgres@{os.getenv('SUPABASE_HOST', '127.0.0.1')}:{os.getenv('DB_PORT', '5432')}/postgres?sslmode=disable",
+        f"postgresql+asyncpg://postgres:postgres@{os.getenv('SUPABASE_HOST', '127.0.0.1')}:{os.getenv('DB_PORT', '5432')}/postgres",
     )
+    url = url.replace("?sslmode=disable", "").replace("?sslmode=require", "")
+    return url
 
 
 def run_migrations_offline() -> None:
@@ -44,11 +48,13 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
+    url = get_url()
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
         future=True,
+        connect_args={"ssl": False},
     )
 
     async with connectable.connect() as connection:
@@ -64,5 +70,4 @@ def run_migrations_online() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    # Don't run migrations on import, only when explicitly called
-    pass
+    run_migrations_online()
