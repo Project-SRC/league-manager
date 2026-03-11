@@ -15,7 +15,7 @@ class DBConnector:
     - delete(): deletes record(s)
     """
 
-    def table(self, name: str):
+    def table(self, name: str) -> str:
         raise NotImplementedError
 
     async def execute(self, operation: str, payload: dict[str, Any]) -> QueryResult:
@@ -29,7 +29,7 @@ def get_connector() -> DBConnector:
     """Get the database connector implementation based on LEGACY setting.
 
     If LEGACY=true, use the legacy RethinkDB connector via websocket.
-    If LEGACY=false (default), use Supabase.
+    If LEGACY=false (default), use SQLAlchemy with asyncpg.
     """
     global _connector
 
@@ -39,7 +39,7 @@ def get_connector() -> DBConnector:
         return LegacyConnector()
 
     if _connector is None:
-        from src.db.supabase import SupabaseConnector
+        from src.db.sqlalchemy_connector import SQLAlchemyConnector
 
-        _connector = SupabaseConnector()
+        _connector = SQLAlchemyConnector()
     return _connector

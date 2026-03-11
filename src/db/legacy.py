@@ -26,7 +26,9 @@ class LegacyConnector(DBConnector):
             return QueryResult(error={"message": str(e)})
 
 
-async def communicate(operation: str, payload: dict[str, Any], **kwargs: dict[str, Any]):
+async def communicate(
+    operation: str, payload: dict[str, Any], **kwargs: dict[str, Any]
+):
     addr: str = ""
     try:
         addr = f"ws://{settings.WS_ADDRESS}:{settings.WS_PORT}/{operation}"

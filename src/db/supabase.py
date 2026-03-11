@@ -17,7 +17,7 @@ class SupabaseConnector(DBConnector):
             settings.SUPABASE_URL, settings.SUPABASE_KEY
         )
 
-    def table(self, name: str):
+    def table(self, name: str):  # type: ignore
         return self._client.table(name)
 
     async def execute(self, operation: str, payload: dict[str, Any]) -> QueryResult:
@@ -32,25 +32,25 @@ class SupabaseConnector(DBConnector):
                 for key, value in filters.items():
                     query = query.eq(key, value)
                 result = query.execute()
-                return QueryResult(data=result.data, count=len(result.data))
+                return QueryResult(data=result.data, count=len(result.data))  # type: ignore[arg-type]
 
             elif operation == "insert":
                 result = self._client.table(table).insert(data).execute()
-                return QueryResult(data=result.data, count=len(result.data))
+                return QueryResult(data=result.data, count=len(result.data))  # type: ignore[arg-type]
 
             elif operation == "update":
                 query = self._client.table(table).update(data)
                 for key, value in filters.items():
                     query = query.eq(key, value)
                 result = query.execute()
-                return QueryResult(data=result.data, count=len(result.data))
+                return QueryResult(data=result.data, count=len(result.data))  # type: ignore[arg-type]
 
             elif operation == "delete":
                 query = self._client.table(table).delete()
                 for key, value in filters.items():
                     query = query.eq(key, value)
                 result = query.execute()
-                return QueryResult(data=result.data, count=len(result.data))
+                return QueryResult(data=result.data, count=len(result.data))  # type: ignore[arg-type]
 
             else:
                 return QueryResult(error={"message": f"Unknown operation: {operation}"})

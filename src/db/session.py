@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,7 +14,7 @@ url = settings.DATABASE_URL
 parsed = urlparse(url)
 query_params = parse_qs(parsed.query)
 
-connect_args = {"ssl": None}
+connect_args: dict[str, Any] = {"ssl": None}
 if "sslmode" in query_params:
     mode = query_params["sslmode"][0]
     if mode == "disable":
@@ -37,7 +38,7 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     async with async_session_factory() as session:
         try:
             yield session
@@ -46,7 +47,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @asynccontextmanager
-async def session_scope() -> AsyncGenerator[AsyncSession, None]:
+async def session_scope() -> AsyncGenerator[AsyncSession]:
     async with async_session_factory() as session:
         try:
             yield session
