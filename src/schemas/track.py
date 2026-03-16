@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 from uuid import UUID as PyUUID
 
@@ -5,8 +7,6 @@ from sqlalchemy import DateTime, Double, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.country import Country
-from src.models.race.race import Race
 from src.schemas.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
 from src.schemas.league_relations import LeagueTrack
 
@@ -27,8 +27,23 @@ class Track(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     map_image: Mapped[str | None] = mapped_column(Text, nullable=True)
     record_time: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    country: Mapped[Country | None] = relationship("Country", back_populates="tracks")
-    races: Mapped[list[Race]] = relationship("Race", back_populates="track")
+    country: Mapped[Country | None] = relationship(
+        "Country", back_populates="tracks", viewonly=True
+    )
+    races: Mapped[list[Race]] = relationship("Race", back_populates="track", viewonly=True)
     league_tracks: Mapped[list[LeagueTrack]] = relationship(
-        "LeagueTrack", back_populates="track"
+        "LeagueTrack", back_populates="track", viewonly=True
+    )
+    direction: Mapped[str] = mapped_column(Text, nullable=False)
+    length_km: Mapped[float] = mapped_column(Double, nullable=False)
+    number_curves: Mapped[int] = mapped_column(Integer, nullable=False)
+    map_image: Mapped[str | None] = mapped_column(Text, nullable=True)
+    record_time: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    country: Mapped["Country | None"] = relationship(
+        "Country", back_populates="tracks", viewonly=True
+    )
+    races: Mapped[list["Race"]] = relationship("Race", back_populates="track", viewonly=True)
+    league_tracks: Mapped[list["LeagueTrack"]] = relationship(
+        "LeagueTrack", back_populates="track", viewonly=True
     )

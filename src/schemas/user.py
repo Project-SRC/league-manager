@@ -7,17 +7,13 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-#
-from src.models.country import Country
-from src.models.race.participation import Participation
-from src.models.team.contract import Contract
-from src.models.team.team import Team
 from src.schemas.base import (
     Base,
     SoftDeleteMixin,
     TimestampMixin,
     UUIDMixin,
 )
+from src.schemas.league_relations import LeagueDriver
 
 
 class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
@@ -46,13 +42,13 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
     driver_profile: Mapped[Driver | None] = relationship(
-        "Driver", back_populates="user", foreign_keys=[driver_id]
+        "Driver", foreign_keys=[driver_id], viewonly=True
     )
     manager_profile: Mapped[Manager | None] = relationship(
-        "Manager", back_populates="user", foreign_keys=[manager_id]
+        "Manager", foreign_keys=[manager_id], viewonly=True
     )
     steward_profile: Mapped[Steward | None] = relationship(
-        "Steward", back_populates="user", foreign_keys=[steward_id]
+        "Steward", foreign_keys=[steward_id], viewonly=True
     )
 
 
@@ -78,14 +74,29 @@ class Driver(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     number: Mapped[str] = mapped_column(String(10), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=True, default=True)
 
-    user: Mapped[User] = relationship("User", back_populates="driver_profile")
-    country: Mapped[Country | None] = relationship("Country", back_populates="drivers")
-    team: Mapped[Team | None] = relationship("Team", back_populates="drivers")
+    user: Mapped[User] = relationship("User", foreign_keys=[user_id], viewonly=True)
+    country: Mapped[Country | None] = relationship(
+        "Country", back_populates="drivers", viewonly=True
+    )
+    team: Mapped[Team | None] = relationship("Team", back_populates="drivers", viewonly=True)
     contracts: Mapped[list[Contract]] = relationship(
-        "Contract", back_populates="driver"
+        "Contract", back_populates="driver", viewonly=True
     )
     participation: Mapped[list[Participation]] = relationship(
-        "Participation", back_populates="driver"
+        "Participation", back_populates="driver", viewonly=True
+    )
+    league_drivers: Mapped[list[LeagueDriver]] = relationship(
+        "LeagueDriver", back_populates="driver", viewonly=True
+    )
+    team: Mapped["Team | None"] = relationship("Team", back_populates="drivers", viewonly=True)
+    contracts: Mapped[list["Contract"]] = relationship(
+        "Contract", back_populates="driver", viewonly=True
+    )
+    participation: Mapped[list["Participation"]] = relationship(
+        "Participation", back_populates="driver", viewonly=True
+    )
+    league_drivers: Mapped[list["LeagueDriver"]] = relationship(
+        "LeagueDriver", back_populates="driver", viewonly=True
     )
 
 
@@ -96,11 +107,9 @@ class Manager(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id"), nullable=False
     )
     active: Mapped[bool] = mapped_column(Boolean, nullable=True, default=True)
-    deactivated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    user: Mapped[User] = relationship("User", back_populates="manager_profile")
+    user: Mapped[User] = relationship("User", foreign_keys=[user_id], viewonly=True)
 
 
 class Steward(Base, UUIDMixin, TimestampMixin):
@@ -110,8 +119,6 @@ class Steward(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("user.id"), nullable=False
     )
     active: Mapped[bool] = mapped_column(Boolean, nullable=True, default=True)
-    deactivated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    user: Mapped[User] = relationship("User", back_populates="steward_profile")
+    user: Mapped[User] = relationship("User", foreign_keys=[user_id], viewonly=True)

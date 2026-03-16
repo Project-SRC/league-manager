@@ -5,9 +5,9 @@ from sqlalchemy import DateTime, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.user.driver import Driver
 from src.schemas.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
 from src.schemas.league_relations import LeagueTeam
+from src.schemas.user import Driver
 
 
 class Team(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
@@ -27,12 +27,8 @@ class Team(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     drivers: Mapped[list[Driver]] = relationship(
         "Driver", back_populates="team", foreign_keys="Driver.current_team"
     )
-    contracts: Mapped[list[Contract]] = relationship(
-        "Contract", back_populates="team"
-    )
-    league_teams: Mapped[list[LeagueTeam]] = relationship(
-        "LeagueTeam", back_populates="team"
-    )
+    contracts: Mapped[list[Contract]] = relationship("Contract", back_populates="team")
+    league_teams: Mapped[list[LeagueTeam]] = relationship("LeagueTeam", back_populates="team")
 
 
 class Contract(Base, UUIDMixin, TimestampMixin):
@@ -44,9 +40,7 @@ class Contract(Base, UUIDMixin, TimestampMixin):
     driver_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("driver.id"), nullable=True
     )
-    terminated_at: Mapped[date | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    terminated_at: Mapped[date | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     team: Mapped[Team | None] = relationship("Team", back_populates="contracts")
     driver: Mapped[Driver | None] = relationship("Driver", back_populates="contracts")
