@@ -1,6 +1,7 @@
 from typing import Any
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import log
@@ -36,9 +37,29 @@ class SQLAlchemyConnector(DBConnector):
                     return await self._delete(session, table, filters)
                 else:
                     return QueryResult(error={"message": f"Unknown operation: {operation}"})
-        except Exception as e:
-            log.error("db_operation_error", operation=operation, error=str(e))
-            return QueryResult(error={"message": str(e)})
+        except IntegrityError as err:
+            log.error(
+                "db_integrity_error",
+                details={
+                    "table": table,
+                    "filters": filters,
+                    "operation": operation,
+                },
+                error=err.__dict__,
+            )
+            return QueryResult(error={"message": str(err._message())})
+
+        except Exception as err:
+            log.error(
+                "db_operation_error",
+                details={
+                    "table": table,
+                    "filters": filters,
+                    "operation": operation,
+                },
+                error=err,
+            )
+            return QueryResult(error={"message": str(err)})
 
     async def _select(
         self, session: AsyncSession, table: str, filters: dict[str, Any]
@@ -85,7 +106,11 @@ class SQLAlchemyConnector(DBConnector):
         query = select(model)
         for key, value in filters.items():
             if hasattr(model, key):
-                query = query.where(getattr(model, key) == value)
+                column = getattr(model, key)
+                if value is None:
+                    query = query.where(column.is_(None))
+                else:
+                    query = query.where(column == value)
 
         result = await session.execute(query)
         rows = result.scalars().all()
@@ -95,7 +120,7 @@ class SQLAlchemyConnector(DBConnector):
             row_dict = {}
             for column in row.__table__.columns:
                 val = getattr(row, column.name)
-                if hasattr(val, "hex"):
+                if isinstance(val, bytes):
                     val = val.hex()
                 row_dict[column.name] = val
             data.append(row_dict)
@@ -146,6 +171,7 @@ class SQLAlchemyConnector(DBConnector):
         session.add(instance)
         await session.flush()
         await session.refresh(instance)
+        await session.commit()
 
         row_dict = {}
         for column in instance.__table__.columns:
@@ -205,12 +231,17 @@ class SQLAlchemyConnector(DBConnector):
         query = update(model)
         for key, value in filters.items():
             if hasattr(model, key):
-                query = query.where(getattr(model, key) == value)
+                column = getattr(model, key)
+                if value is None:
+                    query = query.where(column.is_(None))
+                else:
+                    query = query.where(column == value)
 
         result = await session.execute(query)
         await session.flush()
+        await session.commit()
 
-        return QueryResult(data=[], count=result.rowcount if hasattr(result, "rowcount") else 0)
+        return QueryResult(data=[], count=result.rowcount if hasattr(result, "rowcount") else 0)  # type: ignore[attr-defined]
 
     async def _delete(
         self, session: AsyncSession, table: str, filters: dict[str, Any]
@@ -257,9 +288,14 @@ class SQLAlchemyConnector(DBConnector):
         query = delete(model)
         for key, value in filters.items():
             if hasattr(model, key):
-                query = query.where(getattr(model, key) == value)
+                column = getattr(model, key)
+                if value is None:
+                    query = query.where(column.is_(None))
+                else:
+                    query = query.where(column == value)
 
         result = await session.execute(query)
         await session.flush()
+        await session.commit()
 
-        return QueryResult(data=[], count=result.rowcount if hasattr(result, "rowcount") else 0)
+        return QueryResult(data=[], count=result.rowcount if hasattr(result, "rowcount") else 0)  # type: ignore[attr-defined]
