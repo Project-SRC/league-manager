@@ -1,6 +1,4 @@
-import logging
 import os
-import sys
 from functools import lru_cache
 from typing import Any
 
@@ -43,39 +41,33 @@ class Settings:
 
 def setup_logging() -> None:
     """Configures logging using structlog for structured, context-aware logging."""
+
+    def extract_details(logger, method_name, event_dict):
+        """Extract 'details' from event dict to be a top-level key."""
+        if "details" in event_dict:
+            details = event_dict.pop("details")
+            event_dict["details"] = details
+        return event_dict
+
     shared_processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.filter_by_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
-        structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.stdlib.add_logger_name,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
+        extract_details,
+        structlog.processors.JSONRenderer(),
     ]
 
     structlog.configure(
-        processors=shared_processors
-        + [
-            structlog.stdlib.render_to_log_kwargs,
-        ],
+        processors=shared_processors,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-
-    formatter = structlog.stdlib.ProcessorFormatter(
-        foreign_pre_chain=shared_processors,
-        processor=structlog.processors.JSONRenderer(),
-    )
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
-    root_logger = logging.getLogger()
-    root_logger.handlers.clear()
-    root_logger.addHandler(handler)
-    root_logger.setLevel(logging.INFO)
 
 
 @lru_cache
