@@ -27,7 +27,9 @@ def get_variable(
 
     if name not in VARIABLES:
         return None
-    if name and func:
-        return func(os.environ.get(name))
-    else:
-        return {var: os.environ.get(var) for var in VARIABLES}
+    if name:
+        value = os.environ.get(name)
+        if func:
+            return func(value)
+        return value
+    return {var: os.environ.get(var) for var in VARIABLES}
