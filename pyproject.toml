@@ -62,6 +62,8 @@ ignore = [
     "B008",  # FastAPI Depends() in function defaults is fine
     "B904",  # except raise is fine for auth errors
     "F401",  # unused imports in __init__.py are ok
+    "F821",  # undefined name (forward references in relationships)
+    "UP037",  # quotes around type annotations (needed for forward refs)
 ]
 
 [tool.ruff.lint.isort]
