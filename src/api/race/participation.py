@@ -1,72 +1,36 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
-import ujson as json
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.user.user import get_current_active_user
-from src.db.legacy import run
-from src.models.race.participation import Participation
+from src.db.db import get_connector
 from src.models.user.user import User
-from src.schemas.pydantic.participation import (
-    CreateParticipation,
-    ParticipationResponse,
-    UpdateParticipation,
-)
-from src.service.service import get_variable
-from src.utils.utils import verify_exists_by_id, verify_id
+from src.schemas.pydantic import CreateParticipation, ParticipationResponse, UpdateParticipation
 
-# GET - Read
-# POST - Create
-# PATCH - Update
-# DELETE - Delete
-# OPTIONS - Show Routes
-
-# Router for the API
 ROUTER = APIRouter()
 
-# Environment Variables
-DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
-
-# Global Variables
 TABLE = "participation"
 RACE_TABLE = "race"
 DRIVER_TABLE = "driver"
 
 
-async def verify_exists(participation: Participation):
-    operation = "filter"
-    data = {"driver": str(participation.driver), "deleted_at": None}
-    payload = {"database": DATABASE, "table": TABLE, "filter": json.dumps(data)}
-    database_obj = await run(operation, payload)
-    if len(database_obj.get("response_message")) != 0:
-        return True
-    else:
-        return False
-
-
-@ROUTER.get("/{race}/participation/{identifier}", response_model=Participation)
+@ROUTER.get("/{race}/participation/{identifier}", response_model=ParticipationResponse)
 async def get_participation(
     race: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    operation = "filter"
-    payload = {
-        "database": DATABASE,
-        "table": TABLE,
-        "filter": {"id": identifier, "race": race},
-    }
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    connector = get_connector()
+    result = await connector.execute(
+        "select", {"table": TABLE, "filters": {"id": identifier, "race_id": race}}
+    )
+    if result.error:
         raise HTTPException(
             status_code=404,
-            detail=f"Database couldn't get the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't get the object with the ID {identifier}. Traceback: {result.error}",
         )
-    elif (
-        database_obj.get("status_code") == 200
-        and Participation.parse_obj(database_obj.get("response_message")).deleted_at is not None
-    ):
-        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
-    else:
-        return Participation.parse_obj(database_obj.get("response_message"))
+    if not result.data:
+        raise HTTPException(status_code=404, detail=f"Participation with ID {identifier} not found")
+
+    return ParticipationResponse.model_validate(result.data[0])
 
 
 @ROUTER.post("/{race}/participation", response_model=ParticipationResponse)
@@ -75,36 +39,35 @@ async def create_participation(
     race: str,
     current_user: User = Depends(get_current_active_user),
 ):
-    race_exist = await verify_exists_by_id(race, DATABASE, RACE_TABLE)
-    if not race_exist:
+    connector = get_connector()
+
+    race_result = await connector.execute("select", {"table": RACE_TABLE, "filters": {"id": race}})
+    if race_result.error or not race_result.data:
         raise HTTPException(status_code=404, detail=f"The Race with ID {race} doesn't exist")
 
-    driver_exist = await verify_exists_by_id(str(participation.driver_id), DATABASE, DRIVER_TABLE)
-    if not driver_exist:
+    driver_result = await connector.execute(
+        "select", {"table": DRIVER_TABLE, "filters": {"id": str(participation.driver_id)}}
+    )
+    if driver_result.error or not driver_result.data:
         raise HTTPException(
             status_code=404,
             detail=f"The Driver with ID {participation.driver_id} doesn't exist",
         )
-    operation = "insert"
-    data = participation.model_dump()
-    data["race_id"] = data.pop("race_id", race)
-    fixed_id = False
-    if data.get("id"):
-        fixed_id = True
-    else:
-        data.pop("id", None)
 
-    payload = {"database": DATABASE, "table": TABLE, "data": data}
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    participation_dict = participation.model_dump()
+    participation_dict["race_id"] = race
+    if participation_dict.get("id") is None:
+        participation_dict.pop("id", None)
+
+    insert_result = await connector.execute("insert", {"table": TABLE, "data": participation_dict})
+    if insert_result.error or not insert_result.data:
         raise HTTPException(
             status_code=500,
-            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't create the object. Traceback: {insert_result.error}",
         )
-    else:
-        if not fixed_id:
-            data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
-        return ParticipationResponse(**data)
+
+    created_participation = insert_result.data[0]
+    return ParticipationResponse.model_validate(created_participation)
 
 
 @ROUTER.patch("/{race}/participation/{identifier}", response_model=ParticipationResponse)
@@ -114,59 +77,58 @@ async def update_participation(
     identifier: str,
     current_user: User = Depends(get_current_active_user),
 ):
-    exist = await verify_exists_by_id(identifier, DATABASE, TABLE)
-    if exist:
-        operation = "update"
-        now = str(datetime.now())
-        update_data = body.model_dump(exclude_unset=True)
-        update_data.update({"updated_at": now})
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": update_data,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Database couldn't update the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            return ParticipationResponse(
-                **database_obj.get("response_message").get("changes")[0].get("new_val")
-            )
-    else:
+    connector = get_connector()
+
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
         raise HTTPException(status_code=403, detail="Object not found on database.")
+
+    update_data = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
+    update_data["updated_at"] = datetime.now(UTC)
+
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Database couldn't update the object with the ID {identifier}. Traceback: {result.error}",
+        )
+
+    updated = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if not updated.data:
+        raise HTTPException(status_code=404, detail="Participation not found after update")
+    return ParticipationResponse.model_validate(updated.data[0])
 
 
 @ROUTER.delete("/{race}/participation/{identifier}")
 async def remove_participation(
     race: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    operation = "update"
-    now = str(datetime.now())
-    data = {}
-    data.update({"updated_at": now})
-    data.update({"terminated_at": now})
-    payload = {
-        "database": DATABASE,
-        "table": TABLE,
-        "identifier": identifier,
-        "data": data,
-    }
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    connector = get_connector()
+
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
+        raise HTTPException(status_code=404, detail=f"Participation with ID {identifier} not found")
+
+    update_data = {"updated_at": datetime.now(UTC)}
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
         raise HTTPException(
             status_code=404,
-            detail=f"Database couldn't delete the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't delete the object with the ID {identifier}. Traceback: {result.error}",
         )
-    else:
-        return {"detail": f"{identifier} deleted"}
+    return {"detail": f"{identifier} deleted"}
 
 
 @ROUTER.options("/participation")
-async def describe_route(current_user: User = Depends(get_current_active_user)):
+async def describe_route():
     return {
         "GET": "/v1/race/{race}/participation/{identifier}",
         "DELETE": "/v1/race/{race}/participation/{identifier}",

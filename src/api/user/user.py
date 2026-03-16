@@ -3,7 +3,6 @@ from typing import Any
 from uuid import UUID
 
 import jwt
-import ujson as json
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt import PyJWTError
@@ -11,7 +10,7 @@ from jwt import PyJWTError
 from src.db.db import get_connector
 from src.models.user.user import Token, TokenData, User
 from src.schemas.pydantic import CreateUser
-from src.security import verify_password
+from src.security import get_password_hash, verify_password
 from src.service.service import get_variable
 
 # Router for the API
@@ -25,7 +24,7 @@ DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
 
 # Global variables
 TABLE = "user"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/user/token")
 
 
 async def get_user(username: str):
@@ -49,7 +48,7 @@ async def get_user(username: str):
 
 async def create_user(user: dict[str, Any]):
     connector = get_connector()
-    data = json.loads(User.model_validate({**user}).model_dump_json())
+    data = User.model_validate({**user}).model_dump(mode="python")
     data.pop("id")
     result = await connector.execute("insert", {"table": TABLE, "data": data})
     if result.error:
@@ -76,15 +75,13 @@ async def authenticate_user(username: str, password: str):
     return user
 
 
-def create_access_token(
-    *, data: dict[str, Any], expires_delta: timedelta | None = None
-):
+def create_access_token(*, data: dict[str, Any], expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
         expire = datetime.now(UTC) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -104,7 +101,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except PyJWTError:
         raise credentials_exception
     user = await get_user(username=token_data.username)
-    if user:
+    if not user:
         raise credentials_exception
     return user
 
@@ -141,7 +138,9 @@ async def read_user_me(current_user: User = Depends(get_current_active_user)):
 
 @ROUTER.post("/register")
 async def register_user(form_data: CreateUser) -> dict[str, Any]:
-    user = await create_user(form_data.model_dump())
+    user_data = form_data.model_dump()
+    user_data["password"] = get_password_hash(user_data["password"])
+    user = await create_user(user_data)
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
@@ -152,22 +151,18 @@ async def register_user(form_data: CreateUser) -> dict[str, Any]:
 @ROUTER.delete("/close/{identifier}")
 async def close_account(identifier: str):
     connector = get_connector()
-    result = await connector.execute(
-        "select", {"table": TABLE, "filters": {"id": identifier}}
-    )
+    result = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
     if result.error:
         raise HTTPException(
             status_code=500,
             detail=f"Database error: {result.error}",
         )
     if not result.data:
-        raise HTTPException(
-            status_code=403, detail=f"User with ID {identifier} doesn't exist."
-        )
+        raise HTTPException(status_code=403, detail=f"User with ID {identifier} doesn't exist.")
 
     data = {
-        "updated_at": datetime.now(UTC).isoformat(),
-        "deleted_at": datetime.now(UTC).isoformat(),
+        "updated_at": datetime.now(UTC),
+        "deleted_at": datetime.now(UTC),
     }
     result = await connector.execute(
         "update", {"table": TABLE, "data": data, "filters": {"id": identifier}}
@@ -178,3 +173,12 @@ async def close_account(identifier: str):
             detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {result.error}",
         )
     return {"detail": f"{identifier} deleted"}
+
+
+@ROUTER.options("/")
+async def describe_route():
+    return {
+        "GET": "/v1/user/me",
+        "DELETE": "/v1/user/close/{identifier}",
+        "POST": ["/v1/user/register", "/v1/user/token"],
+    }

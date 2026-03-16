@@ -1,151 +1,116 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
-import ujson as json
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.user.user import get_current_active_user
-from src.db.legacy import run
-from src.models.race.race import Race
+from src.db.db import get_connector
 from src.models.user.user import User
-from src.schemas.pydantic.race import (
-    CreateRace,
-    RaceResponse,
-    UpdateRace,
-)
-from src.service.service import get_variable
-from src.utils.utils import verify_exists_by_id, verify_id
+from src.schemas.pydantic import CreateRace, RaceResponse, UpdateRace
 
-# GET - Read
-# POST - Create
-# PATCH - Update
-# DELETE - Delete
-# OPTIONS - Show Routes
-
-# Router for the API
 ROUTER = APIRouter()
 
-# Environment Variables
-DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
-
-# Global Variables
 TABLE = "race"
+TRACK_TABLE = "track"
 
 
-async def verify_exists(race: Race):
-    # TODO: Define a better way to search for an existing race
-    operation = "filter"
-    data = json.loads(race.json())
-    data = {"track": str(race.track), "date": str(race.date), "deleted_at": None}
-    payload = {"database": DATABASE, "table": TABLE, "filter": json.dumps(data)}
-    database_obj = await run(operation, payload)
-    if len(database_obj.get("response_message")) != 0:
-        return True
-    else:
-        return False
-
-
-@ROUTER.get("/{identifier}", response_model=Race)
+@ROUTER.get("/{identifier}", response_model=RaceResponse)
 async def get_race(identifier: str, current_user: User = Depends(get_current_active_user)):
-    operation = "get"
-    payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    connector = get_connector()
+    result = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if result.error:
         raise HTTPException(
             status_code=404,
-            detail=f"Database couldn't get the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't get the object with the ID {identifier}. Traceback: {result.error}",
         )
-    elif (
-        database_obj.get("status_code") == 200
-        and Race.parse_obj(database_obj.get("response_message")).deleted_at is not None
-    ):
-        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
-    else:
-        return Race.parse_obj(database_obj.get("response_message"))
+    if not result.data:
+        raise HTTPException(status_code=404, detail=f"Race with ID {identifier} not found")
+
+    return RaceResponse.model_validate(result.data[0])
 
 
 @ROUTER.post("/", response_model=RaceResponse)
 async def create_race(race: CreateRace, current_user: User = Depends(get_current_active_user)):
-    exists = await verify_exists_by_id(race.track_id, DATABASE, "track") if race.track_id else False
-    if not exists and race.track_id:
-        raise HTTPException(status_code=404, detail="Track not found")
-    operation = "insert"
-    data = race.model_dump()
-    fixed_id = False
-    if data.get("id"):
-        fixed_id = True
-        database_obj = await run(operation, data)
-    else:
-        data.pop("id", None)
+    connector = get_connector()
 
-    payload = {"database": DATABASE, "table": TABLE, "data": data}
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    if race.track_id:
+        track_result = await connector.execute(
+            "select", {"table": TRACK_TABLE, "filters": {"id": str(race.track_id)}}
+        )
+        if track_result.error or not track_result.data:
+            raise HTTPException(status_code=404, detail="Track not found")
+
+    race_dict = race.model_dump()
+    if race_dict.get("id") is None:
+        race_dict.pop("id", None)
+
+    insert_result = await connector.execute("insert", {"table": TABLE, "data": race_dict})
+    if insert_result.error or not insert_result.data:
         raise HTTPException(
             status_code=500,
-            detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't create the object. Traceback: {insert_result.error}",
         )
-    else:
-        if not fixed_id:
-            data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
-        return RaceResponse(**data)
+
+    created_race = insert_result.data[0]
+    return RaceResponse.model_validate(created_race)
 
 
 @ROUTER.patch("/{identifier}", response_model=RaceResponse)
 async def update_race(
     body: UpdateRace, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    exist = await verify_exists_by_id(identifier, DATABASE, TABLE)
-    if exist:
-        operation = "update"
-        now = str(datetime.now())
-        update_data = body.model_dump(exclude_unset=True)
-        update_data.update({"updated_at": now})
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": update_data,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Database couldn't update the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            return RaceResponse(
-                **database_obj.get("response_message").get("changes")[0].get("new_val")
-            )
-    else:
+    connector = get_connector()
+
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
         raise HTTPException(status_code=403, detail="Object not found on database.")
+
+    update_data = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
+    update_data["updated_at"] = datetime.now(UTC)
+
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Database couldn't update the object with the ID {identifier}. Traceback: {result.error}",
+        )
+
+    updated = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if not updated.data:
+        raise HTTPException(status_code=404, detail="Race not found after update")
+    return RaceResponse.model_validate(updated.data[0])
 
 
 @ROUTER.delete("/{identifier}")
 async def remove_race(identifier: str, current_user: User = Depends(get_current_active_user)):
-    # Soft remove (no data is deleted)
-    operation = "update"
-    now = str(datetime.now())
-    data = {}
-    data.update({"updated_at": now})
-    data.update({"deleted_at": now})
-    payload = {
-        "database": DATABASE,
-        "table": TABLE,
-        "identifier": identifier,
-        "data": data,
+    connector = get_connector()
+
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
+        raise HTTPException(status_code=404, detail=f"Race with ID {identifier} not found")
+
+    update_data = {
+        "updated_at": datetime.now(UTC),
+        "deleted_at": datetime.now(UTC),
     }
-    database_obj = await run(operation, payload)
-    if database_obj.get("status_code") != 200:
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
         raise HTTPException(
             status_code=404,
-            detail=f"Database couldn't delete the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't delete the object with the ID {identifier}. Traceback: {result.error}",
         )
-    else:
-        return {"detail": f"{identifier} deleted"}
+    return {"detail": f"{identifier} deleted"}
 
 
 @ROUTER.options("/")
-async def describe_route(current_user: User = Depends(get_current_active_user)):
+async def describe_route():
     return {
         "GET": "/v1/race/{identifier}",
         "DELETE": "/v1/race/{identifier}",

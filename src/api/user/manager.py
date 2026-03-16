@@ -1,215 +1,183 @@
-from datetime import datetime
+from datetime import UTC, datetime
+from uuid import UUID
 
-import ujson as json
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.user.user import get_current_active_user
-from src.db.legacy import run
-from src.models.user.manager import Manager
+from src.db.db import get_connector
 from src.models.user.user import User
-from src.schemas.pydantic import CreateManager
-from src.service.service import get_variable
-from src.utils.utils import get_object_by_id, verify_exists_by_id
+from src.schemas.pydantic import CreateManager, ManagerResponse
 
-# GET - Read
-# POST - Create
-# PATCH - Update
-# DELETE - Delete
-# OPTIONS - Show Routes
-
-# Router for the API
 ROUTER = APIRouter()
 
-# Environment Variables
-DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
-
-# Global Variables
 TABLE = "manager"
 USER_TABLE = "user"
-NOW = str(datetime.now())
-
-# Mapping Variables
-USER_MAP = ["username", "name", "email", "password", "is_manager"]
-MANAGER_MAP = ["id", "password"]
 
 
-async def verify_exists(manager: dict):
-    operation = "filter"
-    data = {"id": manager.get("id"), "deactivated_at": None}
-    payload = {"database": DATABASE, "table": TABLE, "filter": json.dumps(data)}
-    database_obj = await run(operation, payload)
-    if len(database_obj.get("response_message")) != 0:
-        return True
-    else:
+async def update_user(manager_id: UUID, remove: bool):
+    connector = get_connector()
+    result = await connector.execute(
+        "select", {"table": USER_TABLE, "filters": {"manager_id": str(manager_id)}}
+    )
+    if result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {result.error}")
+
+    if not result.data:
         return False
 
+    data = {"updated_at": datetime.now(UTC), "is_manager": not remove}
+    if remove:
+        data["manager_id"] = None
+    else:
+        data["manager_id"] = str(manager_id)
 
-async def update_user(user_id: str, manager_id: str, remove: bool):
-    user_exist = await verify_exists_by_id(user_id, DATABASE, USER_TABLE)
-    if not remove:
-        manager_exist = await verify_exists_by_id(manager_id, DATABASE, TABLE)
-    else:
-        manager_exist = True
-    if user_exist and manager_exist:
-        operation = "update"
-        body = {"updated_at": NOW, "is_manager": not remove, "manager_id": manager_id}
-        payload = {
-            "database": DATABASE,
-            "table": USER_TABLE,
-            "identifier": user_id,
-            "data": body,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Database couldn't update the object with the ID {user_id}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            return True
-    else:
+    user_id = result.data[0].get("id")
+    result = await connector.execute(
+        "update", {"table": USER_TABLE, "data": data, "filters": {"id": user_id}}
+    )
+    if result.error:
         raise HTTPException(
-            status_code=403, detail="User or Manager doesn't exist in the database."
+            status_code=409,
+            detail=f"Database couldn't update the object. Traceback: {result.error}",
         )
+    return True
 
 
-@ROUTER.get("/{user}/manager/{identifier}", response_model=Manager)
+@ROUTER.get("/{user}/manager/{identifier}", response_model=ManagerResponse)
 async def get_manager(
     user: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    operation = "get"
-    payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
-    database_obj = await run(operation, payload)
-    manager = database_obj.get("response_message")
-    manager.update({"password": 64 * "*"})
-    if database_obj.get("status_code") != 200:
+    connector = get_connector()
+    result = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if result.error:
         raise HTTPException(
             status_code=404,
-            detail=f"Database couldn't get the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't get the object with the ID {identifier}. Traceback: {result.error}",
         )
-    elif (
-        database_obj.get("status_code") == 200
-        and Manager.parse_obj(manager).deactivated_at is not None
-    ):
-        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
-    else:
-        return Manager.parse_obj(manager)
+    if not result.data:
+        raise HTTPException(status_code=404, detail=f"Manager with ID {identifier} not found")
+
+    manager_data = result.data[0]
+    if manager_data.get("deactivated_at"):
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deactivated.")
+
+    return ManagerResponse.model_validate(manager_data)
 
 
-@ROUTER.post("/{user}/manager/", response_model=Manager)
+@ROUTER.post("/{user}/manager/", response_model=ManagerResponse)
 async def create_manager(
     manager: CreateManager, user: str, current_user: User = Depends(get_current_active_user)
 ):
-    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
-    if not user_exist:
+    connector = get_connector()
+
+    user_result = await connector.execute("select", {"table": USER_TABLE, "filters": {"id": user}})
+    if user_result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {user_result.error}")
+    if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
-    user_vals = json.loads(user_exist.json())
-    user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
-    manager_dict = manager.model_dump()
-    exists = await verify_exists(manager_dict)
-    if not exists and not user_vals.get("is_manager", False):
-        operation = "insert"
-        data = json.loads(Manager.parse_obj({**manager_dict, **user_vals}).json())
-        data = {key: value for key, value in data.items() if key not in MANAGER_MAP}
-        fixed_id = manager_dict.get("id", False)
-        payload = {"database": DATABASE, "table": TABLE, "data": data}
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            if not fixed_id:
-                data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
-
-            data.update(
-                {
-                    "password": 64 * "*",
-                    "is_manager": True,
-                    "manager_id": data.get("id"),
-                }
-            )
-            await update_user(user_id=user, manager_id=data.get("id"), remove=False)
-            return Manager.parse_obj(data)
-    else:
+    user_data = user_result.data[0]
+    if user_data.get("is_manager") and user_data.get("manager_id"):
         raise HTTPException(status_code=403, detail="Manager already registered.")
 
+    existing_manager = await connector.execute(
+        "select", {"table": TABLE, "filters": {"user_id": str(manager.user_id)}}
+    )
+    if existing_manager.data:
+        raise HTTPException(status_code=403, detail="Manager already registered.")
 
-@ROUTER.patch("/{user}/manager/{identifier}", response_model=Manager)
+    manager_dict = manager.model_dump()
+    manager_dict["active"] = True
+
+    insert_result = await connector.execute("insert", {"table": TABLE, "data": manager_dict})
+    if insert_result.error or not insert_result.data:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't create the object. Traceback: {insert_result.error}",
+        )
+
+    created_manager = insert_result.data[0]
+    await update_user(UUID(created_manager["id"]), remove=False)
+
+    return ManagerResponse.model_validate(created_manager)
+
+
+@ROUTER.patch("/{user}/manager/{identifier}", response_model=ManagerResponse)
 async def update_manager(
     body: dict,
     user: str,
     identifier: str,
     current_user: User = Depends(get_current_active_user),
 ):
-    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
-    if not user_exist:
+    connector = get_connector()
+
+    user_result = await connector.execute("select", {"table": USER_TABLE, "filters": {"id": user}})
+    if user_result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {user_result.error}")
+    if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
-    user_vals = json.loads(user_exist.json())
-    user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
-    exists = await get_object_by_id(identifier, DATABASE, TABLE, Manager)
-    if not exists:
-        operation = "update"
-        body.update({"updated_at": NOW})
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": body,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't update the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            manager = database_obj.get("response_message").get("changes")[0].get("new_val")
-            manager.update({"password": 64 * "*", "is_manager": True, "manager_id": identifier})
-            return Manager.parse_obj(
-                database_obj.get("response_message").get("changes")[0].get("new_val")
-            )
-    else:
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
         raise HTTPException(status_code=403, detail=f"Manager with ID {identifier} doesn't exist.")
+
+    update_data = {k: v for k, v in body.items() if v is not None}
+    update_data["updated_at"] = datetime.now(UTC)
+
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't update the object. Traceback: {result.error}",
+        )
+
+    updated = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if not updated.data:
+        raise HTTPException(status_code=404, detail="Manager not found after update")
+    return ManagerResponse.model_validate(updated.data[0])
 
 
 @ROUTER.delete("/{user}/manager/{identifier}")
 async def remove_manager(
     user: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    # Soft remove (no data is deleted)
-    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
-    if not user_exist:
+    connector = get_connector()
+
+    user_result = await connector.execute("select", {"table": USER_TABLE, "filters": {"id": user}})
+    if user_result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {user_result.error}")
+    if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
-    exists = await get_object_by_id(identifier, DATABASE, TABLE, Manager)
-    if not exists:
-        operation = "update"
-        data = {"updated_at": NOW, "deactivated_at": NOW}
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": data,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            await update_user(user_id=user, manager_id=None, remove=True)
-            return {"detail": f"{identifier} deleted"}
-    else:
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
         raise HTTPException(status_code=403, detail=f"Manager with ID {identifier} doesn't exist.")
+
+    update_data = {
+        "updated_at": datetime.now(UTC),
+        "deactivated_at": datetime.now(UTC),
+    }
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't delete the object. Traceback: {result.error}",
+        )
+
+    await update_user(UUID(identifier), remove=True)
+    return {"detail": f"{identifier} deleted"}
 
 
 @ROUTER.options("/manager")
-async def describe_route(current_user: User = Depends(get_current_active_user)):
+async def describe_route():
     return {
         "GET": "/v1/user/{user}/manager/{identifier}",
         "DELETE": "/v1/user/{user}/manager/{identifier}",

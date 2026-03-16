@@ -1,215 +1,183 @@
-from datetime import datetime
+from datetime import UTC, datetime
+from uuid import UUID
 
-import ujson as json
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.api.user.user import get_current_active_user
-from src.db.legacy import run
-from src.models.user.steward import Steward
+from src.db.db import get_connector
 from src.models.user.user import User
-from src.schemas.pydantic import CreateSteward
-from src.service.service import get_variable
-from src.utils.utils import get_object_by_id, verify_exists_by_id
+from src.schemas.pydantic import CreateSteward, StewardResponse
 
-# GET - Read
-# POST - Create
-# PATCH - Update
-# DELETE - Delete
-# OPTIONS - Show Routes
-
-# Router for the API
 ROUTER = APIRouter()
 
-# Environment Variables
-DATABASE = get_variable("RDB_DB", str) or "LEAGUE"
-
-# Global Variables
 TABLE = "steward"
 USER_TABLE = "user"
-NOW = str(datetime.now())
-
-# Mapping Variables
-USER_MAP = ["username", "name", "email", "password", "is_steward"]
-STEWARD_MAP = ["id", "password"]
 
 
-async def verify_exists(steward: dict):
-    operation = "filter"
-    data = {"id": steward.get("id"), "deactivated_at": None}
-    payload = {"database": DATABASE, "table": TABLE, "filter": json.dumps(data)}
-    database_obj = await run(operation, payload)
-    if len(database_obj.get("response_message")) != 0:
-        return True
-    else:
+async def update_user(steward_id: UUID, remove: bool):
+    connector = get_connector()
+    result = await connector.execute(
+        "select", {"table": USER_TABLE, "filters": {"steward_id": str(steward_id)}}
+    )
+    if result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {result.error}")
+
+    if not result.data:
         return False
 
+    data = {"updated_at": datetime.now(UTC), "is_steward": not remove}
+    if remove:
+        data["steward_id"] = None
+    else:
+        data["steward_id"] = str(steward_id)
 
-async def update_user(user_id: str, steward_id: str, remove: bool):
-    user_exist = await verify_exists_by_id(user_id, DATABASE, USER_TABLE)
-    if not remove:
-        steward_exist = await verify_exists_by_id(steward_id, DATABASE, TABLE)
-    else:
-        steward_exist = True
-    if user_exist and steward_exist:
-        operation = "update"
-        body = {"updated_at": NOW, "is_steward": not remove, "steward_id": steward_id}
-        payload = {
-            "database": DATABASE,
-            "table": USER_TABLE,
-            "identifier": user_id,
-            "data": body,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Database couldn't update the object with the ID {user_id}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            return True
-    else:
+    user_id = result.data[0].get("id")
+    result = await connector.execute(
+        "update", {"table": USER_TABLE, "data": data, "filters": {"id": user_id}}
+    )
+    if result.error:
         raise HTTPException(
-            status_code=403, detail="User or Steward doesn't exist in the database."
+            status_code=409,
+            detail=f"Database couldn't update the object. Traceback: {result.error}",
         )
+    return True
 
 
-@ROUTER.get("/{user}/steward/{identifier}", response_model=Steward)
+@ROUTER.get("/{user}/steward/{identifier}", response_model=StewardResponse)
 async def get_steward(
     user: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    operation = "get"
-    payload = {"database": DATABASE, "table": TABLE, "identifier": identifier}
-    database_obj = await run(operation, payload)
-    steward = database_obj.get("response_message")
-    steward.update({"password": 64 * "*"})
-    if database_obj.get("status_code") != 200:
+    connector = get_connector()
+    result = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if result.error:
         raise HTTPException(
             status_code=404,
-            detail=f"Database couldn't get the object with the ID {identifier}. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
+            detail=f"Database couldn't get the object with the ID {identifier}. Traceback: {result.error}",
         )
-    elif (
-        database_obj.get("status_code") == 200
-        and Steward.parse_obj(steward).deactivated_at is not None
-    ):
-        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deleted.")
-    else:
-        return Steward.parse_obj(steward)
+    if not result.data:
+        raise HTTPException(status_code=404, detail=f"Steward with ID {identifier} not found")
+
+    steward_data = result.data[0]
+    if steward_data.get("deactivated_at"):
+        raise HTTPException(status_code=409, detail=f"Object with ID {identifier} is deactivated.")
+
+    return StewardResponse.model_validate(steward_data)
 
 
-@ROUTER.post("/{user}/steward/", response_model=Steward)
+@ROUTER.post("/{user}/steward/", response_model=StewardResponse)
 async def create_steward(
     steward: CreateSteward, user: str, current_user: User = Depends(get_current_active_user)
 ):
-    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
-    if not user_exist:
+    connector = get_connector()
+
+    user_result = await connector.execute("select", {"table": USER_TABLE, "filters": {"id": user}})
+    if user_result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {user_result.error}")
+    if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
-    user_vals = json.loads(user_exist.json())
-    user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
-    steward_dict = steward.model_dump()
-    exists = await verify_exists(steward_dict)
-    if not exists and not user_vals.get("is_steward", False):
-        operation = "insert"
-        data = json.loads(Steward.parse_obj({**steward_dict, **user_vals}).json())
-        data = {key: value for key, value in data.items() if key not in STEWARD_MAP}
-        fixed_id = steward_dict.get("id", False)
-        payload = {"database": DATABASE, "table": TABLE, "data": data}
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't create the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            if not fixed_id:
-                data.update({"id": database_obj.get("response_message").get("generated_keys")[0]})
-
-            data.update(
-                {
-                    "password": 64 * "*",
-                    "is_steward": True,
-                    "steward_id": data.get("id"),
-                }
-            )
-            await update_user(user_id=user, steward_id=data.get("id"), remove=False)
-            return Steward.parse_obj(data)
-    else:
+    user_data = user_result.data[0]
+    if user_data.get("is_steward") and user_data.get("steward_id"):
         raise HTTPException(status_code=403, detail="Steward already registered.")
 
+    existing_steward = await connector.execute(
+        "select", {"table": TABLE, "filters": {"user_id": str(steward.user_id)}}
+    )
+    if existing_steward.data:
+        raise HTTPException(status_code=403, detail="Steward already registered.")
 
-@ROUTER.patch("/{user}/steward/{identifier}", response_model=Steward)
+    steward_dict = steward.model_dump()
+    steward_dict["active"] = True
+
+    insert_result = await connector.execute("insert", {"table": TABLE, "data": steward_dict})
+    if insert_result.error or not insert_result.data:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't create the object. Traceback: {insert_result.error}",
+        )
+
+    created_steward = insert_result.data[0]
+    await update_user(UUID(created_steward["id"]), remove=False)
+
+    return StewardResponse.model_validate(created_steward)
+
+
+@ROUTER.patch("/{user}/steward/{identifier}", response_model=StewardResponse)
 async def update_steward(
     body: dict,
     user: str,
     identifier: str,
     current_user: User = Depends(get_current_active_user),
 ):
-    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
-    if not user_exist:
+    connector = get_connector()
+
+    user_result = await connector.execute("select", {"table": USER_TABLE, "filters": {"id": user}})
+    if user_result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {user_result.error}")
+    if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
-    user_vals = json.loads(user_exist.json())
-    user_vals = {key: value for key, value in user_vals.items() if key in USER_MAP}
-    exists = await get_object_by_id(identifier, DATABASE, TABLE, Steward)
-    if not exists:
-        operation = "update"
-        body.update({"updated_at": NOW})
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": body,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't update the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            steward = database_obj.get("response_message").get("changes")[0].get("new_val")
-            steward.update({"password": 64 * "*", "is_steward": True, "steward_id": identifier})
-            return Steward.parse_obj(
-                database_obj.get("response_message").get("changes")[0].get("new_val")
-            )
-    else:
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
         raise HTTPException(status_code=403, detail=f"Steward with ID {identifier} doesn't exist.")
+
+    update_data = {k: v for k, v in body.items() if v is not None}
+    update_data["updated_at"] = datetime.now(UTC)
+
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't update the object. Traceback: {result.error}",
+        )
+
+    updated = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if not updated.data:
+        raise HTTPException(status_code=404, detail="Steward not found after update")
+    return StewardResponse.model_validate(updated.data[0])
 
 
 @ROUTER.delete("/{user}/steward/{identifier}")
 async def remove_steward(
     user: str, identifier: str, current_user: User = Depends(get_current_active_user)
 ):
-    # Soft remove (no data is deleted)
-    user_exist = await get_object_by_id(user, DATABASE, USER_TABLE, User)
-    if not user_exist:
+    connector = get_connector()
+
+    user_result = await connector.execute("select", {"table": USER_TABLE, "filters": {"id": user}})
+    if user_result.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {user_result.error}")
+    if not user_result.data:
         raise HTTPException(status_code=404, detail=f"User with ID {user} doesn't exist")
 
-    exists = await get_object_by_id(identifier, DATABASE, TABLE, Steward)
-    if not exists:
-        operation = "update"
-        data = {"updated_at": NOW, "deactivated_at": NOW}
-        payload = {
-            "database": DATABASE,
-            "table": TABLE,
-            "identifier": identifier,
-            "data": data,
-        }
-        database_obj = await run(operation, payload)
-        if database_obj.get("status_code") != 200:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database couldn't delete the object. Check the database connection and parameters. Traceback: {database_obj.get('response_message')}",
-            )
-        else:
-            await update_user(user_id=user, steward_id=None, remove=True)
-            return {"detail": f"{identifier} deleted"}
-    else:
+    existing = await connector.execute("select", {"table": TABLE, "filters": {"id": identifier}})
+    if existing.error:
+        raise HTTPException(status_code=500, detail=f"Database error: {existing.error}")
+    if not existing.data:
         raise HTTPException(status_code=403, detail=f"Steward with ID {identifier} doesn't exist.")
+
+    update_data = {
+        "updated_at": datetime.now(UTC),
+        "deactivated_at": datetime.now(UTC),
+    }
+    result = await connector.execute(
+        "update", {"table": TABLE, "data": update_data, "filters": {"id": identifier}}
+    )
+    if result.error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database couldn't delete the object. Traceback: {result.error}",
+        )
+
+    await update_user(UUID(identifier), remove=True)
+    return {"detail": f"{identifier} deleted"}
 
 
 @ROUTER.options("/steward")
-async def describe_route(current_user: User = Depends(get_current_active_user)):
+async def describe_route():
     return {
         "GET": "/v1/user/{user}/steward/{identifier}",
         "DELETE": "/v1/user/{user}/steward/{identifier}",
