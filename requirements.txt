@@ -218,7 +218,7 @@ typing-inspection==0.4.2
     #   pydantic
 ujson==5.12.0
     # via league-manager
-urllib3==2.6.3
+urllib3==2.7.0
     # via requests
 uvicorn==0.41.0
     # via league-manager
