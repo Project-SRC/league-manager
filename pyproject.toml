@@ -11,7 +11,7 @@ dependencies = [
     "pyjwt==2.12.0",
     "bcrypt==5.0.0",
     "email-validator==2.3.0",
-    "starlette==0.52.1",
+    "starlette==1.0.1",
     "rethinkdb==2.4.10.post1",
     "python-dotenv>=1.2.2",
     "websockets>=12.0,<16.0",
