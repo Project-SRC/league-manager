@@ -162,7 +162,7 @@ python-dateutil==2.9.0.post0
     # via strictyaml
 python-dotenv==1.2.2
     # via league-manager
-python-multipart==0.0.22
+python-multipart==0.0.31
     # via league-manager
 realtime==2.28.0
     # via supabase
