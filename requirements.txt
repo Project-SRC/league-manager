@@ -216,7 +216,7 @@ typing-inspection==0.4.2
     # via
     #   fastapi
     #   pydantic
-ujson==5.12.0
+ujson==5.13.0
     # via league-manager
 urllib3==2.6.3
     # via requests
